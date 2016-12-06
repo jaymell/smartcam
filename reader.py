@@ -18,13 +18,16 @@ def get_device(use_default=True):
     dev_nums.pop(0)
   return dev_nums[0]
 
-class VideoReader:
+
+class VideoSource:
   __metaclass__ = abc.ABCMeta
+
   @abc.abstractmethod
-  def get_image(self): pass
+  def get_image(self): 
+    pass
 
 
-class CV2Reader(VideoReader):
+class DeviceVideo(VideoSource):
 
   def __init__(self, camidx):
     # need a clean way to be able to find non-default
