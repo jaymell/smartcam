@@ -1,7 +1,61 @@
-import cv2
 import abc
+import ConfigParser
+import cv2
 import glob
+import logging
 import os
+import sys
+import time
+
+
+class ImageProcessor:
+
+  __metaclass__ = abc.ABCMeta
+
+  @abc.abstractmethod
+  def get_image(self): 
+    pass
+
+  @abc.abstractmethod
+  def downsample_image(self):
+    pass
+
+  @abc.abstractmethod
+  def get_delta(self, baseline, current):
+    pass
+
+class CV2ImageProcessor(ImageProcessor):
+
+  def __init__(self, video_source):
+    try:
+      self.cam = cv2.VideoCapture(video_source)
+    except Exception as e:
+      logging.critical('Failed to instantiate video capture device: %s' % e)
+      raise e 
+
+  def get_image(self):
+    result, frame = self.cam.read()
+    if result is True:
+      return frame
+    return None
+
+  def downsample_image(self):
+    pass
+
+  def get_delta(self, baseline, current):
+    return cv2.absdiff(baseline, current)
+
+
+def parse_config():
+  config_file = "config"
+  p = ConfigParser.ConfigParser()
+  p.read(config_file)
+  
+  export = {}
+  export['VIDEO_SOURCE'] = os.environ.get('VIDEO_SOURCE', p.get('video', 'source'))
+
+  return export
+
 
 def get_device(use_default=True):
   """ assume lowest index camera found
@@ -19,20 +73,35 @@ def get_device(use_default=True):
   return dev_nums[0]
 
 
-class VideoSource:
-  __metaclass__ = abc.ABCMeta
+def get_video_source(config):
+  if config['VIDEO_SOURCE'] == 'device':
+    return get_device()
+  elif config['VIDEO_SOURCE'] == 'device,non-default':
+    return get_device(use_default=False)
 
-  @abc.abstractmethod
-  def get_image(self): 
-    pass
+
+def main():
+  config = parse_config()
+  video_source = get_video_source(config)
+  try:
+    reader = CV2ImageProcessor(video_source)
+  except Exception as e:
+    logging.critical(e)
+    return 1
+  logging.info('Instantiated reader')
+
+  prev = reader.get_image()
+  time.sleep(.1)
+  while True:
+    cur = reader.get_image()
+    logging.info("Got image")
+    frameDelta = reader.get_delta(prev, cur)
+    cv2.imshow('barf', frameDelta)
+    cv2.waitKey(100)
 
 
-class DeviceVideo(VideoSource):
+if __name__ == '__main__': 
+  logging.basicConfig(level=logging.DEBUG)
+  rc = main()
+  sys.exit(rc)
 
-  def __init__(self, camidx):
-    # need a clean way to be able to find non-default
-    # camera
-    self.camidx = camidx
-
-  def get_image():
-    pass
