@@ -17,7 +17,11 @@ class ImageProcessor:
     pass
 
   @abc.abstractmethod
-  def downsample_image(self):
+  def downsample_image(self, image):
+    pass
+
+  @abc.abstractmethod
+  def grayscale_image(self, image):
     pass
 
   @abc.abstractmethod
@@ -39,8 +43,11 @@ class CV2ImageProcessor(ImageProcessor):
       return frame
     return None
 
-  def downsample_image(self):
-    pass
+  def downsample_image(self, image):
+    pass 
+
+  def grayscale_image(self, image):
+    return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
   def get_delta(self, baseline, current):
     return cv2.absdiff(baseline, current)
@@ -90,15 +97,16 @@ def main():
     return 1
   logging.info('Instantiated reader')
 
-  prev = reader.get_image()
-  time.sleep(.1)
-  while True:
-    cur = reader.get_image()
-    logging.info("Got image")
-    frameDelta = reader.get_delta(prev, cur)
-    cv2.imshow('barf', frameDelta)
-    cv2.waitKey(100)
-
+  while True: 
+    prev = reader.grayscale_image(reader.get_image())
+    time.sleep(.1)
+    while True:
+      cur = reader.grayscale_image(reader.get_image())
+      logging.info("Got image")
+      frameDelta = reader.get_delta(prev, cur)
+      cv2.imshow('barf', frameDelta)
+      cv2.waitKey(100)
+      time.sleep(5)
 
 if __name__ == '__main__': 
   logging.basicConfig(level=logging.DEBUG)
