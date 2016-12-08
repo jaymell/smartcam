@@ -6,9 +6,29 @@ import logging
 import os
 import sys
 import time
+import threading
 
 
-class ImageProcessor:
+class BGThread(threading.Thread):
+  """ thread for setting background image;
+      initialized with ImageProcessor obj and
+      desired time to delay background being set, 
+      in seconds """
+  
+  def __init__(self, image_processor, bg_time=2):
+    self.image_processor = image_processor
+    self.bg_time = bg_time
+    image_processor.lock = threading.Lock()
+    threading.Thread.__init__(self)
+
+  def run(self):
+    while True:
+      logging.info("setting background")
+      self.image_processor.background = self.image_processor.get_image()
+      time.sleep(self.bg_time)
+
+
+class ImageProcessor(object):
 
   __metaclass__ = abc.ABCMeta
 
@@ -27,6 +47,16 @@ class ImageProcessor:
   @abc.abstractmethod
   def get_delta(self, baseline, current):
     pass
+  
+  @property
+  @abc.abstractmethod
+  def background(self):
+    pass
+
+  @background.setter
+  @abc.abstractmethod
+  def background(self, img):
+    pass
 
 class CV2ImageProcessor(ImageProcessor):
 
@@ -35,7 +65,10 @@ class CV2ImageProcessor(ImageProcessor):
       self.cam = cv2.VideoCapture(video_source)
     except Exception as e:
       logging.critical('Failed to instantiate video capture device: %s' % e)
-      raise e 
+      raise e
+    # this should be set by background thread:
+    self.lock = None
+    self._background = None
 
   def get_image(self):
     result, frame = self.cam.read()
@@ -52,6 +85,18 @@ class CV2ImageProcessor(ImageProcessor):
   def get_delta(self, baseline, current):
     return cv2.absdiff(baseline, current)
 
+  @property
+  def background(self):
+    with self.lock:
+      logging.info("locked for get")
+      return self._background
+
+  @background.setter
+  def background(self, img):
+    logging.info("locked for set")
+    with self.lock:
+      logging.info("locked for set")
+      self._background = img
 
 def parse_config():
   config_file = "config"
@@ -96,17 +141,25 @@ def main():
     logging.critical(e)
     return 1
   logging.info('Instantiated reader')
+  try:
+    BGThread(reader).start()
+  except Exception as e:
+    logging.critical("Failed to instantiate BGThread: %s" % e)
+    return 1
 
-  while True: 
-    prev = reader.grayscale_image(reader.get_image())
+  # is there a more elegant way to avoid race condition
+  # between background setting and loop below?
+  while reader.background is None:
     time.sleep(.1)
-    while True:
-      cur = reader.grayscale_image(reader.get_image())
-      logging.info("Got image")
-      frameDelta = reader.get_delta(prev, cur)
-      cv2.imshow('barf', frameDelta)
-      cv2.waitKey(100)
-      time.sleep(5)
+
+  while True:
+    bg = reader.grayscale_image(reader.background)
+    cur = reader.grayscale_image(reader.get_image())
+    logging.info("Got image")
+    frameDelta = reader.get_delta(bg, cur)
+    cv2.imshow('barf', frameDelta)
+    cv2.waitKey(100)
+
 
 if __name__ == '__main__': 
   logging.basicConfig(level=logging.DEBUG)
