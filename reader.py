@@ -19,13 +19,14 @@ class FrameThread(threading.Thread):
   def __init__(self, image_processor, bg_timer, fps):
     self.image_processor = image_processor
     self.bg_timer = bg_timer
-    self.bg_timeout = time.time()
+    # set to get background immediately:
+    self.bg_timeout = time.time() - self.bg_timer
     self.fps = fps
     threading.Thread.__init__(self)
 
   def background_expired(self):
     """ return true/false if time expired """
-    return time.time() - self.bg_timeout > self.bg_timer
+    return time.time() - self.bg_timeout >= self.bg_timer
 
   def run(self):
     timeout = time.time()
@@ -113,25 +114,25 @@ class CV2ImageProcessor(ImageProcessor):
   @property
   def background(self):
     with self.bg_lock:
-      logging.info("locked for background get")
+      logging.debug("locked for background get")
       return self._background
 
   @background.setter
   def background(self, img):
     with self.bg_lock:
-      logging.info("locked for background set")
+      logging.debug("locked for background set")
       self._background = img
 
   @property
   def current(self):
     with self.cur_lock:
-      logging.info("locked for current get")
+      logging.debug("locked for current get")
       return self._current
 
   @current.setter
   def current(self, img):
     with self.cur_lock:
-      logging.info("locked for current set")
+      logging.debug("locked for current set")
       self._current = img
    
 
