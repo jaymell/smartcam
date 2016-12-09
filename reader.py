@@ -8,24 +8,35 @@ import sys
 import time
 import threading
 
+IN_MOTION = False
 
-class BGThread(threading.Thread):
+class FrameThread(threading.Thread):
   """ thread for setting background image;
       initialized with ImageProcessor obj and
       desired time to delay background being set, 
       in seconds """
   
-  def __init__(self, image_processor, bg_time=2):
+  def __init__(self, image_processor, bg_timer, fps):
     self.image_processor = image_processor
-    self.bg_time = bg_time
-    image_processor.lock = threading.Lock()
+    self.bg_timer = bg_timer
+    self.bg_timeout = time.time()
+    self.fps = fps
     threading.Thread.__init__(self)
 
+  def background_expired(self):
+    """ return true/false if time expired """
+    return time.time() - self.bg_timeout > self.bg_timer
+
   def run(self):
+    timeout = time.time()
     while True:
-      logging.info("setting background")
-      self.image_processor.background = self.image_processor.get_image()
-      time.sleep(self.bg_time)
+      logging.info("getting new frame")
+      if (not IN_MOTION) and self.background_expired():
+        self.image_processor.background = self.image_processor.current = self.image_processor.get_image()
+        self.bg_timeout = time.time()
+      else:
+        self.image_processor.current = self.image_processor.get_image()
+      time.sleep(1.0/self.fps)
 
 
 class ImageProcessor(object):
@@ -47,7 +58,7 @@ class ImageProcessor(object):
   @abc.abstractmethod
   def get_delta(self, baseline, current):
     pass
-  
+
   @property
   @abc.abstractmethod
   def background(self):
@@ -56,6 +67,16 @@ class ImageProcessor(object):
   @background.setter
   @abc.abstractmethod
   def background(self, img):
+    pass
+
+  @property
+  @abc.abstractmethod
+  def current(self):
+    pass
+
+  @current.setter
+  @abc.abstractmethod
+  def current(self, img):
     pass
 
 
@@ -67,8 +88,11 @@ class CV2ImageProcessor(ImageProcessor):
     except Exception as e:
       logging.critical('Failed to instantiate video capture device: %s' % e)
       raise e
-    # this should be set by background thread:
-    self.lock = None
+
+    self.bg_lock = threading.Lock()
+    self.cur_lock = threading.Lock()
+
+    self._current = None
     self._background = None
 
   def get_image(self):
@@ -88,24 +112,28 @@ class CV2ImageProcessor(ImageProcessor):
 
   @property
   def background(self):
-    with self.lock:
-      logging.info("locked for get")
+    with self.bg_lock:
+      logging.info("locked for background get")
       return self._background
 
   @background.setter
   def background(self, img):
-    logging.info("locked for set")
-    with self.lock:
-      logging.info("locked for set")
+    with self.bg_lock:
+      logging.info("locked for background set")
       self._background = img
 
-  @property 
+  @property
   def current(self):
-    """ get current frame """
+    with self.cur_lock:
+      logging.info("locked for current get")
+      return self._current
 
-  @current.setter(self, img):
-    
-
+  @current.setter
+  def current(self, img):
+    with self.cur_lock:
+      logging.info("locked for current set")
+      self._current = img
+   
 
 def parse_config():
   config_file = "config"
@@ -114,8 +142,8 @@ def parse_config():
   
   export = {}
   export['VIDEO_SOURCE'] = os.environ.get('VIDEO_SOURCE', p.get('video', 'source'))
-  export['BG_TIMER'] = os.environ.get('BG_TIMER', p.get('video', 'bg_timer'))
-  export['FPS'] = os.environ.get('FPS', p.get('video', 'fps'))
+  export['BG_TIMER'] = float(os.environ.get('BG_TIMER', p.get('video', 'bg_timer')))
+  export['FPS'] = float(os.environ.get('FPS', p.get('video', 'fps')))
   return export
 
 
@@ -141,14 +169,16 @@ def get_video_source(config):
   elif config['VIDEO_SOURCE'] == 'device,non-default':
     return get_device(use_default=False)
 
-def detect_motion():
+
+def detect_motion(reader):
   while True:
     bg = reader.grayscale_image(reader.background)
-    cur = reader.grayscale_image(reader.get_image())
+    cur = reader.grayscale_image(reader.current)
     logging.info("Got image")
     frameDelta = reader.get_delta(bg, cur)
     cv2.imshow('barf', frameDelta)
     cv2.waitKey(100)
+
 
 def main():
   config = parse_config()
@@ -160,18 +190,20 @@ def main():
     return 1
   logging.info('Instantiated reader')
   try:
-    bg_timer = config['BG_TIME']
-    BGThread(reader, bg_timer).start()
+    bg_timer = config['BG_TIMER']
+    fps = config['FPS']
+    FrameThread(reader, bg_timer, fps).start()
   except Exception as e:
-    logging.critical("Failed to instantiate BGThread: %s" % e)
+    logging.critical("Failed to instantiate FrameThread: %s" % e)
     return 1
-  try:
+
   # is there a more elegant way to avoid race condition
   # between background setting and loop below?
   while reader.background is None:
+    print('where am i')
     time.sleep(.1)
 
-  detect_motion()
+  detect_motion(reader)
 
   sys.exit(0)
 
