@@ -58,6 +58,7 @@ class ImageProcessor(object):
   def background(self, img):
     pass
 
+
 class CV2ImageProcessor(ImageProcessor):
 
   def __init__(self, video_source):
@@ -98,6 +99,14 @@ class CV2ImageProcessor(ImageProcessor):
       logging.info("locked for set")
       self._background = img
 
+  @property 
+  def current(self):
+    """ get current frame """
+
+  @current.setter(self, img):
+    
+
+
 def parse_config():
   config_file = "config"
   p = ConfigParser.ConfigParser()
@@ -105,7 +114,8 @@ def parse_config():
   
   export = {}
   export['VIDEO_SOURCE'] = os.environ.get('VIDEO_SOURCE', p.get('video', 'source'))
-
+  export['BG_TIMER'] = os.environ.get('BG_TIMER', p.get('video', 'bg_timer'))
+  export['FPS'] = os.environ.get('FPS', p.get('video', 'fps'))
   return export
 
 
@@ -131,6 +141,14 @@ def get_video_source(config):
   elif config['VIDEO_SOURCE'] == 'device,non-default':
     return get_device(use_default=False)
 
+def detect_motion():
+  while True:
+    bg = reader.grayscale_image(reader.background)
+    cur = reader.grayscale_image(reader.get_image())
+    logging.info("Got image")
+    frameDelta = reader.get_delta(bg, cur)
+    cv2.imshow('barf', frameDelta)
+    cv2.waitKey(100)
 
 def main():
   config = parse_config()
@@ -142,24 +160,20 @@ def main():
     return 1
   logging.info('Instantiated reader')
   try:
-    BGThread(reader).start()
+    bg_timer = config['BG_TIME']
+    BGThread(reader, bg_timer).start()
   except Exception as e:
     logging.critical("Failed to instantiate BGThread: %s" % e)
     return 1
-
+  try:
   # is there a more elegant way to avoid race condition
   # between background setting and loop below?
   while reader.background is None:
     time.sleep(.1)
 
-  while True:
-    bg = reader.grayscale_image(reader.background)
-    cur = reader.grayscale_image(reader.get_image())
-    logging.info("Got image")
-    frameDelta = reader.get_delta(bg, cur)
-    cv2.imshow('barf', frameDelta)
-    cv2.waitKey(100)
+  detect_motion()
 
+  sys.exit(0)
 
 if __name__ == '__main__': 
   logging.basicConfig(level=logging.DEBUG)
