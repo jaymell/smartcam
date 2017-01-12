@@ -3,11 +3,12 @@
 import cv2
 import cv2.cv
 import time
- 
+import reader
+
 if __name__ == '__main__' :
  
     # Start default camera
-    video = cv2.VideoCapture(1);
+    video = cv2.VideoCapture(reader.get_device());
     # Find OpenCV version
     (major_ver, minor_ver, subminor_ver, blah) = (cv2.__version__).split('.')
      
@@ -24,7 +25,7 @@ if __name__ == '__main__' :
      
  
     # Number of frames to capture
-    num_frames = 120;
+    num_frames = 1200;
      
      
     print "Capturing {0} frames".format(num_frames)

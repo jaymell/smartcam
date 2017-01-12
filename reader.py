@@ -99,6 +99,7 @@ class CV2ImageProcessor(ImageProcessor):
   def get_image(self):
     result, frame = self.cam.read()
     if result is True:
+      print("frame: ", frame)
       return frame
     return None
 
