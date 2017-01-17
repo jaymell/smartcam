@@ -1,3 +1,6 @@
+import abc
+import cv2
+
 class ImageReader:
   """ abstract class for image reader """
 

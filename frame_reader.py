@@ -31,7 +31,7 @@ class FrameThread(threading.Thread):
       except Exception as e:
         logging.error("Failed to instantiate Frame: %s" % e)
       try:
-        self.queue.put(frame)
+        self.queue_handler.put(frame)
       except Exception as e:
         print("Failed to put frame onto queue: %s" % e)
       time.sleep(1.0/self.fps)
