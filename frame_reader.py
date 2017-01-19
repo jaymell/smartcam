@@ -2,7 +2,8 @@ import abc
 import cv2
 import logging
 import datetime
-
+import threading
+import time
 
 class Frame:
   def __init__(self, image):

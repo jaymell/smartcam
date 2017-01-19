@@ -1,7 +1,7 @@
 import abc
 import cv2
 
-class ImageReader:
+class ImageReader(object):
   """ abstract class for image reader """
 
   __metaclass__ = abc.ABCMeta
@@ -11,7 +11,7 @@ class ImageReader:
     pass
 
 
-class CV2ImageReader(ImageProcessor):
+class CV2ImageReader(ImageReader):
 
   def __init__(self, video_source):
     try:
