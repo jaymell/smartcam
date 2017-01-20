@@ -37,7 +37,7 @@ def get_video_source(config):
     return get_device(use_default=False)
 
 
-def detect_motion(image_processor):
+def detect_motion(image_processor, fps):
   while True:
     # bg = reader.grayscale_image(reader.background)
     # cur = reader.grayscale_image(reader.current)
@@ -45,7 +45,7 @@ def detect_motion(image_processor):
     logging.info("Got image")
     # frameDelta = reader.get_delta(bg, cur)
     cv2.imshow('barf', img)
-    # cv2.waitKey(100)
+    cv2.waitKey(int(1000/fps))
 
 def parse_config():
   config_file = "config"
@@ -102,7 +102,7 @@ def main():
     logging.critical("Failed to instantiate CV2ImageProcessor: %s" % e)
     return 1
 
-  detect_motion(image_processor)
+  detect_motion(image_processor, fps)
 
   sys.exit(0)
 

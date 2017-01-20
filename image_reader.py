@@ -1,5 +1,6 @@
 import abc
 import cv2
+import logging
 
 class ImageReader(object):
   """ abstract class for image reader """
@@ -23,6 +24,6 @@ class CV2ImageReader(ImageReader):
   def get_image(self):
     result, frame = self._cam.read()
     if result is True:
-      print("frame: ", frame)
+      logging.debug("frame: ", frame)
       return frame
     return None
