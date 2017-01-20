@@ -19,13 +19,13 @@ class QueueHandler(threading.Thread):
 
   def run(self):
     while True:
-      image = self._queue.get()
+      frame = self._queue.get()
       try:
-        # self._video_queue.put(image)
-        pass
+        self._video_queue.put(frame)
       except Exception as e:
         logging.error("failed to put image on video queue: %s" % e)
       try:
-        self._image_queue.put(image)
+        # self._image_queue.put(image)
+        pass
       except Exception as e:
         logging.error("failed to put image on image queue: %s" % e)

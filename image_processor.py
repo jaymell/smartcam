@@ -1,13 +1,14 @@
 import abc
 # import threading
 import cv2
+import collections
 
 class ImageProcessor(object):
 
   __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
-  def get_image(self): 
+  def get_frame(self): 
     pass
 
   @abc.abstractmethod
@@ -53,9 +54,9 @@ class CV2ImageProcessor(ImageProcessor):
     self._current = None
     self._background = None
 
-  def get_image(self):
+  def get_frame(self):
     frame = self.image_queue.get()
-    return frame.image
+    return frame
 
   def downsample_image(self, image):
     pass 

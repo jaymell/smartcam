@@ -13,6 +13,7 @@ from frame_reader import FrameThread
 from image_reader import CV2ImageReader
 from queue_handler import QueueHandler
 from image_processor import CV2ImageProcessor
+from video_processor import CV2VideoProcessor
 
 def get_device(use_default=True):
   """ assume lowest index camera found
@@ -41,10 +42,14 @@ def detect_motion(image_processor, fps):
   while True:
     # bg = reader.grayscale_image(reader.background)
     # cur = reader.grayscale_image(reader.current)
-    img = image_processor.get_image()
+    frame = image_processor.get_frame()
+    img = frame.image 
+    t = frame.time
+    w, h, _ = img.shape
+    # img = cv2.resize(img,(h/3, w/3)
     logging.info("Got image")
     # frameDelta = reader.get_delta(bg, cur)
-    cv2.imshow('barf', img)
+    cv2.imshow(t.strftime('%Y-%m-%d'), img)
     cv2.waitKey(int(1000/fps))
 
 def parse_config():
@@ -102,7 +107,13 @@ def main():
     logging.critical("Failed to instantiate CV2ImageProcessor: %s" % e)
     return 1
 
-  detect_motion(image_processor, fps)
+  try: 
+    video_processor = CV2VideoProcessor(video_queue)
+  except Exception as e:
+    logging.critical("Failed to instantiate CV2ImageProcessor: %s" % e)
+    return 1
+
+  detect_motion(video_processor, fps)
 
   sys.exit(0)
 
