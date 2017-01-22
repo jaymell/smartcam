@@ -2,6 +2,8 @@ import abc
 import cv2
 import logging
 
+logger = logging.getLogger(__name__)
+
 class ImageReader(object):
   """ abstract class for image reader """
 
@@ -18,12 +20,11 @@ class CV2ImageReader(ImageReader):
     try:
       self._cam = cv2.VideoCapture(video_source)
     except Exception as e:
-      logging.critical('Failed to instantiate video capture device: %s' % e)
+      logger.critical('Failed to instantiate video capture device: %s' % e)
       raise e
 
   def get_image(self):
     result, frame = self._cam.read()
     if result is True:
-      logging.debug("frame: ", frame)
       return frame
     return None

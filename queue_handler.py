@@ -2,6 +2,8 @@ import Queue
 import threading
 import logging
 
+logger = logging.getLogger(__name__)
+
 class QueueHandler(threading.Thread):
   """ provides queue for inputting images,
       and puts images onto queues for image
@@ -21,11 +23,13 @@ class QueueHandler(threading.Thread):
     while True:
       frame = self._queue.get()
       try:
-        self._video_queue.put(frame)
-      except Exception as e:
-        logging.error("failed to put image on video queue: %s" % e)
-      try:
-        # self._image_queue.put(image)
+        # self._video_queue.put(frame)
         pass
       except Exception as e:
-        logging.error("failed to put image on image queue: %s" % e)
+        logger.error("failed to put image on video queue: %s" % e)
+      try:
+        logger.debug("put image on image queue")
+        self._image_queue.put(frame)
+        # pass
+      except Exception as e:
+        logger.error("failed to put image on image queue: %s" % e)

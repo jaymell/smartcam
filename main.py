@@ -14,6 +14,9 @@ from queue_handler import QueueHandler
 from image_processor import CV2ImageProcessor
 from video_processor import CV2VideoProcessor
 
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 def get_device(use_default=True):
   """ assume lowest index camera found
        is the default -- if use_default False,
@@ -46,7 +49,7 @@ def detect_motion(video_processor, fps):
     t = frame.time
     w, h, _ = img.shape
     # img = cv2.resize(img,(h/3, w/3)
-    logging.info("Got image")
+    logger.info("Got image")
     # frameDelta = reader.get_delta(bg, cur)
     cv2.imshow(t.strftime('%Y-%m-%d'), img)
     cv2.waitKey(int(1000/fps))
@@ -82,13 +85,13 @@ def main():
     queue_handler = QueueHandler(video_queue, image_queue)
     queue_handler.start()
   except Exception as e:
-    logging.critical("Failed to instantiate QueueHandler: %s " % e)
+    logger.critical("Failed to instantiate QueueHandler: %s " % e)
     return 1
 
   try:
     image_reader = CV2ImageReader(video_source)
   except Exception as e:
-    logging.critical("Failed to instantiate CV2ImageReader: %s" % e)
+    logger.critical("Failed to instantiate CV2ImageReader: %s" % e)
     return 1
   
   try:
@@ -97,23 +100,23 @@ def main():
     frame_reader = FrameThread(image_reader, queue_handler, fps)
     frame_reader.start()
   except Exception as e:
-    logging.critical("Failed to instantiate FrameThread: %s" % e)
+    logger.critical("Failed to instantiate FrameThread: %s" % e)
     return 1
 
   try: 
-    image_processor = CV2ImageProcessor(image_queue, bg_timeout)
+    image_processor = CV2ImageProcessor(image_queue, bg_timeout, fps)
     image_processor.start()
   except Exception as e:
-    logging.critical("Failed to instantiate CV2ImageProcessor: %s" % e)
+    logger.critical("Failed to instantiate CV2ImageProcessor: %s" % e)
     return 1
 
   try: 
     video_processor = CV2VideoProcessor(video_queue)
   except Exception as e:
-    logging.critical("Failed to instantiate CV2ImageProcessor: %s" % e)
+    logger.critical("Failed to instantiate CV2ImageProcessor: %s" % e)
     return 1
 
-  detect_motion(video_processor, fps)
+  # detect_motion(video_processor, fps)
 
   sys.exit(0)
 
