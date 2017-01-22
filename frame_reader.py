@@ -2,8 +2,10 @@ import abc
 import cv2
 import logging
 import datetime
-import threading
+import Queue
+import multiprocessing
 import time
+
 
 logger = logging.getLogger(__name__)
 
@@ -30,23 +32,28 @@ class Frame:
     self._time = time
 
 
-class FrameThread(threading.Thread):
+class FrameReader(multiprocessing.Process):
   """ thread for setting background image;
       initialized with ImageProcessor obj and
       desired time to delay background being set, 
       in seconds """
   
   def __init__(self, image_reader, queue_handler, fps):
+    multiprocessing.Process.__init__(self)
     self.fps = fps
     self.image_reader = image_reader
     self.queue_handler = queue_handler
-    threading.Thread.__init__(self)
+    self.daemon = True
 
   def run(self):
+    logging.debug("starting frame_reader run loop")
     while True:
       logger.debug("getting new frame")
       try:
         frame = Frame(self.image_reader.get_image())
+      except Queue.Empty:
+        # SHOULD I PAUSE HERE?
+        continue
       except Exception as e:
         logger.error("Failed to instantiate Frame: %s" % e)
       try:

@@ -1,6 +1,12 @@
 import abc
-# import threading
+import Queue
+import multiprocessing
 import cv2
+import logging
+
+
+logger = logging.getLogger(__name__)
+
 
 class VideoProcessor(object):
 

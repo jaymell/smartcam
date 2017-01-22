@@ -1,11 +1,14 @@
 import abc
+import Queue
 import multiprocessing
 import cv2
 import collections
 import datetime
 import logging
 
+
 logger = logging.getLogger(__name__)
+
 
 class ImageProcessor(multiprocessing.Process):
 
@@ -75,6 +78,7 @@ class ImageProcessor(multiprocessing.Process):
 class CV2ImageProcessor(ImageProcessor):
 
   def __init__(self, image_queue, bg_timeout, fps):
+    multiprocessing.Process.__init__(self)
     self.image_queue = image_queue
     self.bg_lock = multiprocessing.Lock()
     self.cur_lock = multiprocessing.Lock()
@@ -83,20 +87,22 @@ class CV2ImageProcessor(ImageProcessor):
     self._background = None
     self._in_motion = False
     self.fps = fps
-    multiprocessing.Process.__init__(self)
+    self.daemon = True
 
   def detect_motion(self):
     delta = self.get_delta()
-    thresh = cv2.threshold(frameDelta, 25, 255, cv2.THRESH_BINARY)[1]
+    thresh = cv2.threshold(delta, 25, 255, cv2.THRESH_BINARY)[1]
     thresh = cv2.dilate(thresh, None, iterations=2)
     (cnts, _) = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
     cv2.CHAIN_APPROX_SIMPLE)
     for c in cnts:
-      if cv2.contourArea(c) < args["min_area"]:
+      # FIXME: don't hard-code this value
+      if cv2.contourArea(c) < 500:
         return False
     return True
 
   def blur_image(self, image):
+    logger.debug('blurring image')
     return cv2.GaussianBlur(image, (21, 21), 0)
 
   def get_frame(self):
@@ -104,6 +110,7 @@ class CV2ImageProcessor(ImageProcessor):
     return frame
 
   def resize_image(self, image, width):
+    logger.debug('resizing image')
     (h, w) = image.shape[:2]
     logger.debug('dimensions: %s, %s' % (h, w))
     r = width / float(w)
@@ -112,12 +119,13 @@ class CV2ImageProcessor(ImageProcessor):
 
   def downsample_image(self, image):
     image = self.resize_image(image, 500)
-    image = self.grayscale_image(image)
     image = self.blur_image(image)
+    image = self.grayscale_image(image)
     return image
 
   def grayscale_image(self, image):
-    logger.debug('this is my image: %s' % image)
+    logger.debug('converting image to grayscale')
+    logger.debug(image.shape)
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
   def get_delta(self):
@@ -136,8 +144,8 @@ class CV2ImageProcessor(ImageProcessor):
   def background(self, frame):
     with self.bg_lock:
       logging.debug("locked for background set")
+      # no need to downsample here b/c it's already been done by self.current:
       self._background = frame
-      self._background.image = self.downsample_image(frame.image)
 
   @property
   def current(self):
@@ -153,10 +161,13 @@ class CV2ImageProcessor(ImageProcessor):
       self._current.image = self.downsample_image(frame.image)
 
   def run(self):
-    logging.debug("starting image_processor thread")
+    logging.debug("starting image_processor run loop")
     while True:
-      logging.debug("getting frame")
-      frame = self.get_frame()
+      try:
+        logging.debug("getting frame")
+        frame = self.get_frame()
+      except Queue.Empty:
+        continue
       logging.debug("got frame")
       self.current = frame
       if self.background == None or self.background_expired():

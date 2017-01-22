@@ -8,7 +8,7 @@ import logging
 import sys
 import multiprocessing
 import cv2
-from frame_reader import FrameThread
+from frame_reader import FrameReader
 from image_reader import CV2ImageReader
 from queue_handler import QueueHandler
 from image_processor import CV2ImageProcessor
@@ -40,17 +40,12 @@ def get_video_source(config):
     return get_device(use_default=False)
 
 
-def detect_motion(video_processor, fps):
+def show_video(video_processor, fps):
   while True:
-    # bg = reader.grayscale_image(reader.background)
-    # cur = reader.grayscale_image(reader.current)
     frame = video_processor.get_frame()
     img = frame.image 
     t = frame.time
-    w, h, _ = img.shape
-    # img = cv2.resize(img,(h/3, w/3)
     logger.info("Got image")
-    # frameDelta = reader.get_delta(bg, cur)
     cv2.imshow(t.strftime('%Y-%m-%d'), img)
     cv2.waitKey(int(1000/fps))
 
@@ -58,7 +53,6 @@ def parse_config():
   config_file = "config"
   p = ConfigParser.ConfigParser()
   p.read(config_file)
-  
   export = {}
   export['VIDEO_SOURCE'] = os.environ.get('VIDEO_SOURCE', p.get('video', 'source'))
   export['BG_TIMEOUT'] = float(os.environ.get('BG_TIMEOUT', p.get('video', 'bg_timeout')))
@@ -76,12 +70,14 @@ def main():
   """
 
   config = parse_config()
+  bg_timeout = config['BG_TIMEOUT']
+  fps = config['FPS']
   video_source = get_video_source(config)
-  
   video_queue = multiprocessing.Queue()
   image_queue = multiprocessing.Queue()
 
   try:
+    logger.debug('starting queue_handler')
     queue_handler = QueueHandler(video_queue, image_queue)
     queue_handler.start()
   except Exception as e:
@@ -95,15 +91,15 @@ def main():
     return 1
   
   try:
-    bg_timeout = config['BG_TIMEOUT']
-    fps = config['FPS']
-    frame_reader = FrameThread(image_reader, queue_handler, fps)
+    logger.debug('starting frame_reader')
+    frame_reader = FrameReader(image_reader, queue_handler, fps)
     frame_reader.start()
   except Exception as e:
-    logger.critical("Failed to instantiate FrameThread: %s" % e)
+    logger.critical("Failed to instantiate FrameReader: %s" % e)
     return 1
 
-  try: 
+  try:
+    logger.debug('starting image_processor')
     image_processor = CV2ImageProcessor(image_queue, bg_timeout, fps)
     image_processor.start()
   except Exception as e:
@@ -116,8 +112,8 @@ def main():
     logger.critical("Failed to instantiate CV2ImageProcessor: %s" % e)
     return 1
 
-  # detect_motion(video_processor, fps)
-
+  show_video(video_processor, fps)
+  frame_reader.join(); image_processor.join(); queue_hander.join()
   sys.exit(0)
 
 if __name__ == '__main__':
