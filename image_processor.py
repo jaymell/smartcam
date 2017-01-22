@@ -1,11 +1,20 @@
 import abc
-# import threading
+import multiprocessing
 import cv2
 import collections
+import datetime
 
-class ImageProcessor(object):
+class ImageProcessor(multiprocessing.Process):
 
   __metaclass__ = abc.ABCMeta
+
+  @abc.abstractmethod
+  def __init__(self, bg_timeout):
+    pass
+
+  @abc.abstractmethod
+  def detect_motion(self):
+    pass
 
   @abc.abstractmethod
   def get_frame(self): 
@@ -43,20 +52,32 @@ class ImageProcessor(object):
   def current(self, img):
     pass
 
+  @abc.abstractmethod
+  def run(self):
+    pass
+
 
 class CV2ImageProcessor(ImageProcessor):
 
-  def __init__(self, image_queue):
+  def __init__(self, image_queue, bg_timeout):
     self.image_queue = image_queue
     # self.bg_lock = threading.Lock()
     # self.cur_lock = threading.Lock()
-
+    self.bg_timeout = datetime.timedelta(0, bg_timeout)
     self._current = None
     self._background = None
+    self._in_motion = False
+
+  def detect_motion(self):
+    ## FIXME: temporary
+    return False
 
   def get_frame(self):
     frame = self.image_queue.get()
     return frame
+
+  def background_expired(self):
+    return self._current.time - self.bg_timeout >= self._background
 
   def downsample_image(self, image):
     pass 
@@ -90,3 +111,17 @@ class CV2ImageProcessor(ImageProcessor):
     # with self.cur_lock:
       # logging.debug("locked for current set")
       self._current = img
+
+  def run(self):
+    while True:
+      frame = self.get_frame()
+      self._current = frame
+      if self.background_expired():
+        self._background = self._current
+        self._in_motion = False
+        continue
+      if not self._in_motion:
+        self._in_motion = self.detect_motion()
+      if self._in_motion:
+        cv2.imshow(t.strftime('%Y-%m-%d'), img)
+        cv2.waitKey(int(1000/fps))

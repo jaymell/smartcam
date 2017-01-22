@@ -6,7 +6,6 @@ import os
 import glob
 import logging
 import sys
-import time
 import multiprocessing
 import cv2
 from frame_reader import FrameThread
@@ -38,11 +37,11 @@ def get_video_source(config):
     return get_device(use_default=False)
 
 
-def detect_motion(image_processor, fps):
+def detect_motion(video_processor, fps):
   while True:
     # bg = reader.grayscale_image(reader.background)
     # cur = reader.grayscale_image(reader.current)
-    frame = image_processor.get_frame()
+    frame = video_processor.get_frame()
     img = frame.image 
     t = frame.time
     w, h, _ = img.shape
@@ -59,7 +58,7 @@ def parse_config():
   
   export = {}
   export['VIDEO_SOURCE'] = os.environ.get('VIDEO_SOURCE', p.get('video', 'source'))
-  export['BG_TIMER'] = float(os.environ.get('BG_TIMER', p.get('video', 'bg_timer')))
+  export['BG_TIMEOUT'] = float(os.environ.get('BG_TIMEOUT', p.get('video', 'bg_timeout')))
   export['FPS'] = float(os.environ.get('FPS', p.get('video', 'fps')))
   return export
 
@@ -93,7 +92,7 @@ def main():
     return 1
   
   try:
-    bg_timer = config['BG_TIMER']
+    bg_timeout = config['BG_TIMEOUT']
     fps = config['FPS']
     frame_reader = FrameThread(image_reader, queue_handler, fps)
     frame_reader.start()
@@ -102,7 +101,8 @@ def main():
     return 1
 
   try: 
-    image_processor = CV2ImageProcessor(image_queue)
+    image_processor = CV2ImageProcessor(image_queue, bg_timeout)
+    image_processor.start()
   except Exception as e:
     logging.critical("Failed to instantiate CV2ImageProcessor: %s" % e)
     return 1

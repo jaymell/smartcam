@@ -24,7 +24,6 @@ class FrameThread(threading.Thread):
     threading.Thread.__init__(self)
 
   def run(self):
-    timeout = time.time()
     while True:
       logging.info("getting new frame")
       try:

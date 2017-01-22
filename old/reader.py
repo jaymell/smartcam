@@ -10,6 +10,7 @@ import threading
 
 IN_MOTION = False
 
+
 class FrameThread(threading.Thread):
   """ thread for setting background image;
       initialized with ImageProcessor obj and
