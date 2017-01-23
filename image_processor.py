@@ -93,17 +93,18 @@ class CV2ImageProcessor(ImageProcessor):
     delta = self.get_delta()
     thresh = cv2.threshold(delta, 50, 255, cv2.THRESH_BINARY)[1]
     thresh = cv2.dilate(thresh, None, iterations=2)
+    # cv2.imshow('asdf', thresh)
+    # cv2.waitKey(int(1000/self.fps))
     (cnts, _) = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    logger.debug('here: ')
+    if not cnts:
+      return False
     for c in cnts:
       # FIXME: don't hard-code this value
-      logger.debug('this: ', c)
       if cv2.contourArea(c) < 1000:
         return False
     return True
 
   def blur_image(self, image):
-    logger.debug('blurring image')
     return cv2.GaussianBlur(image, (21, 21), 0)
 
   def get_frame(self):
@@ -111,7 +112,6 @@ class CV2ImageProcessor(ImageProcessor):
     return frame
 
   def resize_image(self, image, width):
-    logger.debug('resizing image')
     (h, w) = image.shape[:2]
     logger.debug('dimensions: %s, %s' % (h, w))
     r = width / float(w)
@@ -125,7 +125,6 @@ class CV2ImageProcessor(ImageProcessor):
     return image
 
   def grayscale_image(self, image):
-    logger.debug('converting image to grayscale')
     logger.debug(image.shape)
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
@@ -138,26 +137,22 @@ class CV2ImageProcessor(ImageProcessor):
   @property
   def background(self):
     with self.bg_lock:
-      logger.debug("locked for background get")
       return self._background
 
   @background.setter
   def background(self, frame):
     with self.bg_lock:
-      logger.debug("locked for background set")
       # no need to downsample here b/c it's already been done by self.current:
       self._background = frame
 
   @property
   def current(self):
     with self.cur_lock:
-      logger.debug("locked for current get")
       return self._current
 
   @current.setter
   def current(self, frame):
     with self.cur_lock:
-      logger.debug("locked for current set")
       self._current = frame
       self._current.image = self.downsample_image(frame.image)
 
