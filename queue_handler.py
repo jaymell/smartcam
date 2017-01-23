@@ -1,7 +1,7 @@
 import Queue
 import multiprocessing
 import logging
-
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -11,11 +11,12 @@ class QueueHandler(multiprocessing.Process):
       and puts images onto queues for image
       and video processing """
 
-  def __init__(self, video_queue, image_queue):
+  def __init__(self, video_queue, image_queue, fps):
     multiprocessing.Process.__init__(self)
     self._queue = multiprocessing.Queue()
     self._image_queue = image_queue
     self._video_queue = video_queue
+    self.fps = fps
     self.daemon = True
 
   def put(self, item):
@@ -25,15 +26,11 @@ class QueueHandler(multiprocessing.Process):
   def run(self):
     logger.debug("starting queue_handler run loop")
     while True:
-      logging.debug("queue_handler getting frame")
       try:
         frame = self._queue.get(block=False)
       except Queue.Empty:
-        # SHOULD I PAUSE HERE?
+        time.sleep(1.0/self.fps)
         continue
-      
-      logger.debug("queue_handler got frame")
-      
       try:
         self._video_queue.put(frame)
         pass

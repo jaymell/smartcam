@@ -91,13 +91,15 @@ class CV2ImageProcessor(ImageProcessor):
 
   def detect_motion(self):
     delta = self.get_delta()
-    thresh = cv2.threshold(delta, 25, 255, cv2.THRESH_BINARY)[1]
+    thresh = cv2.threshold(delta, 500000, 255, cv2.THRESH_BINARY)[1]
     thresh = cv2.dilate(thresh, None, iterations=2)
     (cnts, _) = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
     cv2.CHAIN_APPROX_SIMPLE)
+    logger.debug('here: ')
     for c in cnts:
       # FIXME: don't hard-code this value
-      if cv2.contourArea(c) < 500:
+      logger.debug('this: ', c)
+      if cv2.contourArea(c) < 1000:
         return False
     return True
 
@@ -137,48 +139,46 @@ class CV2ImageProcessor(ImageProcessor):
   @property
   def background(self):
     with self.bg_lock:
-      logging.debug("locked for background get")
+      logger.debug("locked for background get")
       return self._background
 
   @background.setter
   def background(self, frame):
     with self.bg_lock:
-      logging.debug("locked for background set")
+      logger.debug("locked for background set")
       # no need to downsample here b/c it's already been done by self.current:
       self._background = frame
 
   @property
   def current(self):
     with self.cur_lock:
-      logging.debug("locked for current get")
+      logger.debug("locked for current get")
       return self._current
 
   @current.setter
   def current(self, frame):
     with self.cur_lock:
-      logging.debug("locked for current set")
+      logger.debug("locked for current set")
       self._current = frame
       self._current.image = self.downsample_image(frame.image)
 
   def run(self):
-    logging.debug("starting image_processor run loop")
+    logger.debug("starting image_processor run loop")
     while True:
       try:
-        logging.debug("getting frame")
         frame = self.get_frame()
       except Queue.Empty:
         continue
-      logging.debug("got frame")
       self.current = frame
       if self.background == None or self.background_expired():
-        logging.debug("setting background")
+        logger.debug("setting background")
         self.background = self.current
         self._in_motion = False
         continue
       if not self._in_motion:
-        logging.debug("detecting motion")
+        logger.debug("detecting motion")
         self._in_motion = self.detect_motion()
       if self._in_motion:
-        logging.debug('motion detected')
+        logger.debug('motion detected')
         cv2.imshow('MOTION_DETECTED', frame.image)
         cv2.waitKey(int(1000/self.fps))

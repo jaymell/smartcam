@@ -78,7 +78,7 @@ def main():
 
   try:
     logger.debug('starting queue_handler')
-    queue_handler = QueueHandler(video_queue, image_queue)
+    queue_handler = QueueHandler(video_queue, image_queue, fps)
     queue_handler.start()
   except Exception as e:
     logger.critical("Failed to instantiate QueueHandler: %s " % e)
