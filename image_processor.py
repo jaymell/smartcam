@@ -5,7 +5,7 @@ import cv2
 import collections
 import datetime
 import logging
-
+import copy
 
 logger = logging.getLogger(__name__)
 
@@ -91,10 +91,9 @@ class CV2ImageProcessor(ImageProcessor):
 
   def detect_motion(self):
     delta = self.get_delta()
-    thresh = cv2.threshold(delta, 500000, 255, cv2.THRESH_BINARY)[1]
+    thresh = cv2.threshold(delta, 50, 255, cv2.THRESH_BINARY)[1]
     thresh = cv2.dilate(thresh, None, iterations=2)
-    (cnts, _) = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
-    cv2.CHAIN_APPROX_SIMPLE)
+    (cnts, _) = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     logger.debug('here: ')
     for c in cnts:
       # FIXME: don't hard-code this value
@@ -169,7 +168,7 @@ class CV2ImageProcessor(ImageProcessor):
         frame = self.get_frame()
       except Queue.Empty:
         continue
-      self.current = frame
+      self.current = copy.deepcopy(frame)
       if self.background == None or self.background_expired():
         logger.debug("setting background")
         self.background = self.current
