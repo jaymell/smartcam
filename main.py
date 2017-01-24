@@ -45,9 +45,8 @@ def show_video(video_processor, fps):
     frame = video_processor.get_frame()
     img = frame.image 
     t = frame.time
-    logger.info("Got image")
     cv2.imshow(t.strftime('%Y-%m-%d'), img)
-    cv2.waitKey(int(1000/fps))
+    cv2.waitKey(1)
 
 def parse_config():
   config_file = "config"

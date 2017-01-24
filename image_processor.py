@@ -89,7 +89,8 @@ class CV2ImageProcessor(ImageProcessor):
     self.fps = fps
     self.daemon = True
 
-  def detect_motion(self):
+  def detect_motion(self, image):
+    motion_detected = False
     delta = self.get_delta()
     thresh = cv2.threshold(delta, 50, 255, cv2.THRESH_BINARY)[1]
     thresh = cv2.dilate(thresh, None, iterations=2)
@@ -100,9 +101,12 @@ class CV2ImageProcessor(ImageProcessor):
       return False
     for c in cnts:
       # FIXME: don't hard-code this value
-      if cv2.contourArea(c) < 1000:
-        return False
-    return True
+      if cv2.contourArea(c) > 1000:
+        motion_detected = True
+        logger.debug('motion detected')
+        (x, y, w, h) = cv2.boundingRect(c)
+        cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), 2)
+    return motion_detected
 
   def blur_image(self, image):
     return cv2.GaussianBlur(image, (21, 21), 0)
@@ -113,19 +117,17 @@ class CV2ImageProcessor(ImageProcessor):
 
   def resize_image(self, image, width):
     (h, w) = image.shape[:2]
-    logger.debug('dimensions: %s, %s' % (h, w))
     r = width / float(w)
     dim = (width, int(h * r))
     return cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
 
   def downsample_image(self, image):
-    image = self.resize_image(image, 500)
+    # image = self.resize_image(image, 500)
     image = self.blur_image(image)
     image = self.grayscale_image(image)
     return image
 
   def grayscale_image(self, image):
-    logger.debug(image.shape)
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
   def get_delta(self):
@@ -168,11 +170,16 @@ class CV2ImageProcessor(ImageProcessor):
         logger.debug("setting background")
         self.background = self.current
         self._in_motion = False
+        cv2.destroyWindow('MOTION_DETECTED')
+
+        # makes destroyWindow work -- may
+        # be a better way to do this:
+        cv2.waitKey(1)
         continue
-      if not self._in_motion:
-        logger.debug("detecting motion")
-        self._in_motion = self.detect_motion()
+      # if not self._in_motion:
+      self._in_motion = self.detect_motion(frame.image)
       if self._in_motion:
         logger.debug('motion detected')
         cv2.imshow('MOTION_DETECTED', frame.image)
-        cv2.waitKey(int(1000/self.fps))
+        cv2.moveWindow('MOTION_DETECTED', 0,0)
+        cv2.waitKey(1)
