@@ -48,7 +48,6 @@ class FrameReader(multiprocessing.Process):
   def run(self):
     logging.debug("starting frame_reader run loop")
     while True:
-      logger.debug("getting new frame")
       try:
         frame = Frame(self.image_reader.get_image())
       except Queue.Empty:
