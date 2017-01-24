@@ -160,6 +160,7 @@ class CV2ImageProcessor(ImageProcessor):
 
   def run(self):
     logger.debug("starting image_processor run loop")
+    video_buffer = []
     while True:
       try:
         frame = self.get_frame()
@@ -167,19 +168,24 @@ class CV2ImageProcessor(ImageProcessor):
         continue
       self.current = copy.deepcopy(frame)
       if self.background == None or self.background_expired():
+        (h, w) = frame.image.shape[:2]
         logger.debug("setting background")
         self.background = self.current
         self._in_motion = False
+        if video_buffer:
+          writer = cv2.VideoWriter('/home/james/Videos/%s.avi' % datetime.datetime.now().isoformat(), cv2.cv.CV_FOURCC('M','J','P','G'), self.fps, (w,h), True)
+          [ writer.write(i) for i in video_buffer ]
+        video_buffer = []
         cv2.destroyWindow('MOTION_DETECTED')
-
         # makes destroyWindow work -- may
         # be a better way to do this:
         cv2.waitKey(1)
         continue
-      # if not self._in_motion:
-      self._in_motion = self.detect_motion(frame.image)
+      if not self._in_motion:
+        self._in_motion = self.detect_motion(frame.image)
       if self._in_motion:
         logger.debug('motion detected')
         cv2.imshow('MOTION_DETECTED', frame.image)
+        video_buffer.append(frame.image)
         cv2.moveWindow('MOTION_DETECTED', 0,0)
         cv2.waitKey(1)
