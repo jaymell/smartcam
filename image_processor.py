@@ -177,7 +177,7 @@ class CV2ImageProcessor(ImageProcessor):
           writer = video_writer.CV2VideoWriter('mp42',
                                                self.fps,
                                                '/home/james/Videos',
-                                               video_buffer[0].time.isoformat() + '.mp4',
+                                               video_buffer[0].time.isoformat() + '.avi',
                                                w,
                                                h)
           writer.write(video_buffer)
@@ -191,6 +191,7 @@ class CV2ImageProcessor(ImageProcessor):
         self._in_motion = self.detect_motion(frame.image)
       if self._in_motion:
         logger.debug('motion detected')
+        self.detect_motion(frame.image)
         cv2.imshow('MOTION_DETECTED', frame.image)
         video_buffer.append(frame)
         cv2.moveWindow('MOTION_DETECTED', 0,0)
