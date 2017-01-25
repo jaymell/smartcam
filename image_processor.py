@@ -6,6 +6,7 @@ import collections
 import datetime
 import logging
 import copy
+import video_writer
 
 logger = logging.getLogger(__name__)
 
@@ -173,8 +174,13 @@ class CV2ImageProcessor(ImageProcessor):
         self.background = self.current
         self._in_motion = False
         if video_buffer:
-          writer = cv2.VideoWriter('/home/james/Videos/%s.avi' % datetime.datetime.now().isoformat(), cv2.cv.CV_FOURCC('M','J','P','G'), self.fps, (w,h), True)
-          [ writer.write(i) for i in video_buffer ]
+          writer = video_writer.CV2VideoWriter('mjpg',
+                                               self.fps,
+                                               '/home/james/Videos',
+                                               video_buffer[0].time.isoformat() + '.avi',
+                                               w,
+                                               h)
+          writer.write(video_buffer)
         video_buffer = []
         cv2.destroyWindow('MOTION_DETECTED')
         # makes destroyWindow work -- may
@@ -186,6 +192,6 @@ class CV2ImageProcessor(ImageProcessor):
       if self._in_motion:
         logger.debug('motion detected')
         cv2.imshow('MOTION_DETECTED', frame.image)
-        video_buffer.append(frame.image)
+        video_buffer.append(frame)
         cv2.moveWindow('MOTION_DETECTED', 0,0)
         cv2.waitKey(1)
