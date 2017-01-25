@@ -44,4 +44,5 @@ class CV2VideoWriter(VideoWriter):
       raise e
 
   def write(self, frames):
+    logger.debug('Writing video')
     [ self.writer.write(i.image) for i in frames ]

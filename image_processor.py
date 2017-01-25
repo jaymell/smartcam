@@ -97,10 +97,10 @@ class CV2ImageProcessor(ImageProcessor):
     thresh = cv2.dilate(thresh, None, iterations=2)
     # cv2.imshow('asdf', thresh)
     # cv2.waitKey(int(1000/self.fps))
-    (cnts, _) = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if not cnts:
+    (contours, _) = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
       return False
-    for c in cnts:
+    for c in contours:
       # FIXME: don't hard-code this value
       if cv2.contourArea(c) > 1000:
         motion_detected = True
@@ -174,10 +174,10 @@ class CV2ImageProcessor(ImageProcessor):
         self.background = self.current
         self._in_motion = False
         if video_buffer:
-          writer = video_writer.CV2VideoWriter('mjpg',
+          writer = video_writer.CV2VideoWriter('mp42',
                                                self.fps,
                                                '/home/james/Videos',
-                                               video_buffer[0].time.isoformat() + '.avi',
+                                               video_buffer[0].time.isoformat() + '.mp4',
                                                w,
                                                h)
           writer.write(video_buffer)
