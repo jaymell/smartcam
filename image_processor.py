@@ -105,6 +105,7 @@ class CV2ImageProcessor(ImageProcessor):
       if cv2.contourArea(c) > 1000:
         motion_detected = True
         logger.debug('motion detected')
+        ## draw rectangle on image:
         (x, y, w, h) = cv2.boundingRect(c)
         cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), 2)
     return motion_detected
@@ -136,6 +137,11 @@ class CV2ImageProcessor(ImageProcessor):
 
   def background_expired(self):
     return self.current.time - self.bg_timeout >= self.background.time
+
+  def write_text(self, image, text):
+    (h, w) = image.shape[:2]
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    cv2.putText(image, text, (int(w*.05),int(h*.9)), font, .75, (255,255,255), 2, cv2.CV_AA)
 
   @property
   def background(self):
@@ -192,6 +198,7 @@ class CV2ImageProcessor(ImageProcessor):
       if self._in_motion:
         logger.debug('motion detected')
         self.detect_motion(frame.image)
+        self.write_text(frame.image, frame.time.isoformat())
         cv2.imshow('MOTION_DETECTED', frame.image)
         video_buffer.append(frame)
         cv2.moveWindow('MOTION_DETECTED', 0,0)
