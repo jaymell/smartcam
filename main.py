@@ -55,6 +55,7 @@ def parse_config():
   export = {}
   export['VIDEO_SOURCE'] = os.environ.get('VIDEO_SOURCE', p.get('video', 'source'))
   export['BG_TIMEOUT'] = float(os.environ.get('BG_TIMEOUT', p.get('video', 'bg_timeout')))
+  export['MOTION_TIMEOUT'] = float(os.environ.get('MOTION_TIMEOUT', p.get('video', 'motion_timeout')))
   export['FPS'] = float(os.environ.get('FPS', p.get('video', 'fps')))
   return export
 
@@ -70,6 +71,7 @@ def main():
 
   config = parse_config()
   bg_timeout = config['BG_TIMEOUT']
+  motion_timeout = config['MOTION_TIMEOUT']
   fps = config['FPS']
   video_source = get_video_source(config)
   video_queue = multiprocessing.Queue()
@@ -99,7 +101,7 @@ def main():
 
   try:
     logger.debug('starting image_processor')
-    image_processor = CV2ImageProcessor(image_queue, bg_timeout, fps)
+    image_processor = CV2ImageProcessor(image_queue, motion_timeout, fps)
     image_processor.start()
   except Exception as e:
     logger.critical("Failed to instantiate CV2ImageProcessor: %s" % e)

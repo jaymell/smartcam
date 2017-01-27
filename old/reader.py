@@ -150,7 +150,7 @@ def parse_config():
   return export
 
 
-def get_device(use_default=True):
+def get_device(use_default=False):
   """ assume lowest index camera found
        is the default -- if use_default False,
        return second-lowest camera index """
