@@ -214,12 +214,12 @@ class CV2ImageProcessor(ImageProcessor):
                                              w,
                                              h)
         writer.write(video_buffer)
-      video_buffer = []
-      self.last_motion_time = None
-      cv2.destroyWindow('MOTION_DETECTED')
-      # makes destroyWindow work -- may
-      # be a better way to do this:
-      cv2.waitKey(1)
+        video_buffer = []
+        self.last_motion_time = None
+        cv2.destroyWindow('MOTION_DETECTED')
+        # makes destroyWindow work -- may
+        # be a better way to do this:
+        cv2.waitKey(1)
 
 
 
