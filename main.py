@@ -8,8 +8,7 @@ import logging
 import sys
 import multiprocessing
 import cv2
-from frame_reader import FrameReader
-from image_reader import CV2ImageReader
+from frame_reader import CV2FrameReader, run_frame_thread
 from queue_handler import QueueHandler
 from image_processor import CV2ImageProcessor
 from video_processor import CV2VideoProcessor
@@ -86,17 +85,17 @@ def main():
     return 1
 
   try:
-    image_reader = CV2ImageReader(video_source)
+    frame_reader = CV2FrameReader(video_source)
   except Exception as e:
-    logger.critical("Failed to instantiate CV2ImageReader: %s" % e)
+    logger.critical("Failed to instantiate CV2FrameReader: %s" % e)
     return 1
   
   try:
     logger.debug('starting frame_reader')
-    frame_reader = FrameReader(image_reader, queue_handler, fps)
-    frame_reader.start()
+    frame_thread = multiprocessing.Process(target=run_frame_thread, args=(frame_reader, queue_handler, fps))
+    frame_thread.start()
   except Exception as e:
-    logger.critical("Failed to instantiate FrameReader: %s" % e)
+    logger.critical("Failed to start frame_thread: %s" % e)
     return 1
 
   try:
@@ -114,7 +113,7 @@ def main():
     return 1
 
   show_video(video_processor, fps)
-  frame_reader.join(); image_processor.join(); queue_hander.join()
+  frame_thread.join(); image_processor.join(); queue_hander.join()
   sys.exit(0)
 
 if __name__ == '__main__':

@@ -136,7 +136,7 @@ class CV2ImageProcessor(ImageProcessor):
     return frame
 
   def resize_image(self, image, width):
-    (h, w) = image.shape[:2]
+    (h, w) = image.height, image.width
     r = width / float(w)
     dim = (width, int(h * r))
     return cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
@@ -156,8 +156,8 @@ class CV2ImageProcessor(ImageProcessor):
   def background_expired(self):
     return self.current.time - self.bg_timeout >= self.background.time
 
-  def write_text(self, image, text):
-    (h, w) = image.shape[:2]
+  def write_text(self, frame, text):
+    (h, w) = frame.height, frame.width
     font = cv2.FONT_HERSHEY_SIMPLEX
     cv2.putText(image, text, (int(w*.05),int(h*.9)), font, .75, (255,255,255), 2, cv2.CV_AA)
 
@@ -201,7 +201,7 @@ class CV2ImageProcessor(ImageProcessor):
         logger.debug('motion detected')
         self.last_motion_time = self.current.time
         self.draw_rectangles(frame.image, contours)
-        self.write_text(frame.image, frame.time.isoformat())
+        self.write_text(frame, frame.time.isoformat())
         video_buffer.append(frame)
         cv2.imshow('MOTION_DETECTED', frame.image)
         cv2.moveWindow('MOTION_DETECTED', 10, 10)
@@ -211,8 +211,8 @@ class CV2ImageProcessor(ImageProcessor):
                                              self.fps,
                                              '/home/james/Videos',
                                              video_buffer[0].time.isoformat() + '.avi',
-                                             w,
-                                             h)
+                                             video_buffer[0].width,
+                                             video_buffer[0].height)
         writer.write(video_buffer)
         video_buffer = []
         self.last_motion_time = None
