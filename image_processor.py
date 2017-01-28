@@ -86,7 +86,7 @@ class ImageProcessor(multiprocessing.Process):
 
 class CV2ImageProcessor(ImageProcessor):
 
-  def __init__(self, image_queue, motion_timeout, fps):
+  def __init__(self, image_queue, motion_timeout, fps, video_format):
     multiprocessing.Process.__init__(self)
     self.image_queue = image_queue
     self.bg_lock = multiprocessing.Lock()
@@ -97,6 +97,7 @@ class CV2ImageProcessor(ImageProcessor):
     self.fps = fps
     self.daemon = True
     self.last_motion_time = None
+    self.video_format = video_format
 
   def detect_motion(self):
     delta = self.get_delta()
@@ -159,7 +160,7 @@ class CV2ImageProcessor(ImageProcessor):
   def write_text(self, frame, text):
     (h, w) = frame.height, frame.width
     font = cv2.FONT_HERSHEY_SIMPLEX
-    cv2.putText(image, text, (int(w*.05),int(h*.9)), font, .75, (255,255,255), 2, cv2.CV_AA)
+    cv2.putText(frame.image, text, (int(w*.05),int(h*.9)), font, .75, (255,255,255), 2, cv2.CV_AA)
 
   @property
   def background(self):
@@ -207,7 +208,7 @@ class CV2ImageProcessor(ImageProcessor):
         cv2.moveWindow('MOTION_DETECTED', 10, 10)
         cv2.waitKey(1)
       elif self.motion_is_timed_out():
-        writer = video_writer.CV2VideoWriter('mp42',
+        writer = video_writer.CV2VideoWriter(self.video_format,
                                              self.fps,
                                              '/home/james/Videos',
                                              video_buffer[0].time.isoformat() + '.avi',

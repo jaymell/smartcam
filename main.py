@@ -16,10 +16,11 @@ from video_processor import CV2VideoProcessor
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-def get_device(use_default=True):
+def get_device(use_default=True, device_path=None):
   """ assume lowest index camera found
        is the default -- if use_default False,
        return second-lowest camera index """
+
   devs = glob.glob('/sys/class/video4linux/*')
   dev_nums = []
   for dev in devs:
@@ -33,6 +34,11 @@ def get_device(use_default=True):
 
 
 def get_video_source(config):
+  try: 
+    dev_num = int(config['VIDEO_SOURCE'])
+    return dev_num
+  except ValueError:
+    pass
   if config['VIDEO_SOURCE'] == 'device':
     return get_device()
   elif config['VIDEO_SOURCE'] == 'device,non-default':
@@ -53,8 +59,8 @@ def parse_config():
   p.read(config_file)
   export = {}
   export['VIDEO_SOURCE'] = os.environ.get('VIDEO_SOURCE', p.get('video', 'source'))
-  export['BG_TIMEOUT'] = float(os.environ.get('BG_TIMEOUT', p.get('video', 'bg_timeout')))
   export['MOTION_TIMEOUT'] = float(os.environ.get('MOTION_TIMEOUT', p.get('video', 'motion_timeout')))
+  export['VIDEO_FORMAT'] = os.environ.get('VIDEO_FORMAT', p.get('video', 'video_format'))
   export['FPS'] = float(os.environ.get('FPS', p.get('video', 'fps')))
   return export
 
@@ -69,9 +75,9 @@ def main():
   """
 
   config = parse_config()
-  bg_timeout = config['BG_TIMEOUT']
   motion_timeout = config['MOTION_TIMEOUT']
   fps = config['FPS']
+  video_format = config['VIDEO_FORMAT']
   video_source = get_video_source(config)
   video_queue = multiprocessing.Queue()
   image_queue = multiprocessing.Queue()
@@ -100,7 +106,7 @@ def main():
 
   try:
     logger.debug('starting image_processor')
-    image_processor = CV2ImageProcessor(image_queue, motion_timeout, fps)
+    image_processor = CV2ImageProcessor(image_queue, motion_timeout, fps, video_format)
     image_processor.start()
   except Exception as e:
     logger.critical("Failed to instantiate CV2ImageProcessor: %s" % e)
