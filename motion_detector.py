@@ -15,7 +15,7 @@ class MotionDetector(multiprocessing.Process):
   __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
-  def __init__(self, image_queue, bg_timeout, fps):
+  def __init__(self, image_queue, bg_timeout, fps, video_format):
     pass
 
   @abc.abstractmethod
