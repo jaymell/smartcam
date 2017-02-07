@@ -35,7 +35,7 @@ class CV2VideoWriter(VideoWriter):
     self.is_color = is_color
     try:
       self.writer = cv2.VideoWriter(self.full_path,
-                                    cv2.cv.CV_FOURCC(*self.fmt), 
+                                    cv2.VideoWriter_fourcc(*self.fmt), 
                                     self.fps, 
                                     (self.width,self.height), 
                                     self.is_color)

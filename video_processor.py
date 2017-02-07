@@ -1,5 +1,5 @@
 import abc
-import Queue
+import queue
 import multiprocessing
 import cv2
 import logging

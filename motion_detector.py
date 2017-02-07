@@ -4,7 +4,7 @@ import copy
 import datetime
 import logging
 import multiprocessing
-import Queue
+import queue
 import video_writer
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,9 @@ class MotionDetector(multiprocessing.Process):
 
 
 class CV2FrameDiffMotionDetector(MotionDetector):
-
+  ''' detect motion by differencing current and previous
+      frame
+  '''
   def __init__(self, image_queue, motion_timeout, fps, video_format):
     multiprocessing.Process.__init__(self)
     self.image_queue = image_queue
@@ -48,7 +50,11 @@ class CV2FrameDiffMotionDetector(MotionDetector):
     thresh = cv2.dilate(thresh, None, iterations=2)
     # cv2.imshow('asdf', thresh)
     # cv2.waitKey(int(1000/self.fps))
-    (_contours, _) = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # cv3:
+    # findContours(image, mode, method[, contours[, hierarchy[, offset]]]) -> image, contours, hierarchy
+    # cv2: findContours(image, mode, method[, contours[, hierarchy[, offset]]]) -> contours, hierarchy
+
+    (_, _contours, _) = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not _contours:
       return False, None
     contours = []
@@ -103,7 +109,7 @@ class CV2FrameDiffMotionDetector(MotionDetector):
   def write_text(self, frame, text):
     (h, w) = frame.height, frame.width
     font = cv2.FONT_HERSHEY_SIMPLEX
-    cv2.putText(frame.image, text, (int(w*.05),int(h*.9)), font, .75, (255,255,255), 2, cv2.CV_AA)
+    cv2.putText(frame.image, text, (int(w*.05),int(h*.9)), font, .75, (255,255,255), 2, cv2.LINE_AA)
 
   @property
   def background(self):
@@ -133,7 +139,9 @@ class CV2FrameDiffMotionDetector(MotionDetector):
     while True:
       try:
         frame = self.get_frame()
-      except Queue.Empty:
+      except queue.Empty:
+        continue
+      if frame is None:
         continue
       if frame is None:
         continue
@@ -165,3 +173,6 @@ class CV2FrameDiffMotionDetector(MotionDetector):
         # makes destroyWindow work -- may
         # be a better way to do this:
         cv2.waitKey(1)
+      ### not currently in motion but still within timeout:
+      elif self.last_motion_time != None:
+        video_buffer.append(frame)

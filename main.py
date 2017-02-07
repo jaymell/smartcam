@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import threading
-import ConfigParser
+import configparser
 import os 
 import glob
 import logging
@@ -29,6 +29,7 @@ def get_device(use_default=True, device_path=None):
       dev_num = f.read().rstrip()
       dev_nums.append(int(dev_num.split(':')[1]))
   dev_nums.sort()
+  logger.debug('dev_nums: %s' % dev_nums)
   if not use_default:
     dev_nums.pop(0)
   return dev_nums[0]
@@ -59,7 +60,7 @@ def show_video(video_processor, fps):
 
 def parse_config():
   config_file = "config"
-  p = ConfigParser.ConfigParser()
+  p = configparser.ConfigParser()
   p.read(config_file)
   export = {}
   export['VIDEO_SOURCE'] = os.environ.get('VIDEO_SOURCE', p.get('video', 'source'))

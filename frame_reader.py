@@ -2,7 +2,7 @@ import abc
 import cv2
 import logging
 import datetime
-import Queue
+import queue
 import multiprocessing
 import time
 
@@ -34,7 +34,7 @@ class Frame(object):
     self._time = time
 
 
-class FrameReader(object):
+class FrameReader:
   """ abstract class for image reader """
 
   __metaclass__ = abc.ABCMeta
@@ -68,7 +68,7 @@ def run_frame_thread(frame_reader, queue_handler, fps):
   while True:
     try:
       frame = frame_reader.get_frame()
-    except Queue.Empty:
+    except queue.Empty:
       # SHOULD I PAUSE HERE?
       continue
     except Exception as e:
