@@ -10,7 +10,7 @@ import multiprocessing
 import cv2
 from frame_reader import CV2FrameReader, run_frame_thread
 from queue_handler import QueueHandler
-from image_processor import CV2ImageProcessor
+from motion_detector import CV2FrameDiffMotionDetector
 from video_processor import CV2VideoProcessor
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -105,11 +105,11 @@ def main():
     return 1
 
   try:
-    logger.debug('starting image_processor')
-    image_processor = CV2ImageProcessor(image_queue, motion_timeout, fps, video_format)
-    image_processor.start()
+    logger.debug('starting motion_detector')
+    motion_detector = CV2FrameDiffMotionDetector(image_queue, motion_timeout, fps, video_format)
+    motion_detector.start()
   except Exception as e:
-    logger.critical("Failed to instantiate CV2ImageProcessor: %s" % e)
+    logger.critical("Failed to instantiate CV2FrameDiffMotionDetector: %s" % e)
     return 1
 
   try: 
@@ -119,7 +119,7 @@ def main():
     return 1
 
   show_video(video_processor, fps)
-  frame_thread.join(); image_processor.join(); queue_hander.join()
+  frame_thread.join(); motion_detector.join(); queue_hander.join()
   sys.exit(0)
 
 if __name__ == '__main__':

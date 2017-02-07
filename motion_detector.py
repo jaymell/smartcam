@@ -1,17 +1,16 @@
 import abc
-import Queue
-import multiprocessing
 import cv2
-import collections
+import copy
 import datetime
 import logging
-import copy
+import multiprocessing
+import Queue
 import video_writer
 
 logger = logging.getLogger(__name__)
 
 
-class ImageProcessor(multiprocessing.Process):
+class MotionDetector(multiprocessing.Process):
 
   __metaclass__ = abc.ABCMeta
 
@@ -24,67 +23,11 @@ class ImageProcessor(multiprocessing.Process):
     pass
 
   @abc.abstractmethod
-  def motion_is_timed_out(self):
-    pass
-
-  @abc.abstractmethod
-  def draw_rectangles(self):
-    pass
-
-  @abc.abstractmethod
-  def blur_image(self, image):
-    pass
-
-  @abc.abstractmethod
-  def get_frame(self): 
-    pass
-
-  @abc.abstractmethod
-  def resize_image(self, image): 
-    pass
-
-  @abc.abstractmethod
-  def downsample_image(self, image):
-    pass
-
-  @abc.abstractmethod
-  def grayscale_image(self, image):
-    pass
-
-  @abc.abstractmethod
-  def get_delta(self, baseline, current):
-    pass
-
-  @abc.abstractmethod
-  def background_expired(self):
-    pass
-
-  @property
-  @abc.abstractmethod
-  def background(self):
-    pass
-
-  @background.setter
-  @abc.abstractmethod
-  def background(self, image):
-    pass
-
-  @property
-  @abc.abstractmethod
-  def current(self):
-    pass
-
-  @current.setter
-  @abc.abstractmethod
-  def current(self, image):
-    pass
-
-  @abc.abstractmethod
   def run(self):
     pass
 
 
-class CV2ImageProcessor(ImageProcessor):
+class CV2FrameDiffMotionDetector(MotionDetector):
 
   def __init__(self, image_queue, motion_timeout, fps, video_format):
     multiprocessing.Process.__init__(self)
@@ -170,7 +113,6 @@ class CV2ImageProcessor(ImageProcessor):
   @background.setter
   def background(self, frame):
     with self.bg_lock:
-      # no need to downsample here b/c it's already been done by self.current:
       self._background = frame
 
   @property
@@ -220,47 +162,4 @@ class CV2ImageProcessor(ImageProcessor):
         cv2.destroyWindow('MOTION_DETECTED')
         # makes destroyWindow work -- may
         # be a better way to do this:
-        cv2.waitKey(1)
-
-
-
-
-
-  def old_run(self):
-    logger.debug("starting image_processor run loop")
-    video_buffer = []
-    while True:
-      try:
-        frame = self.get_frame()
-      except Queue.Empty:
-        continue
-      self.current = copy.deepcopy(frame)
-      if self.background == None or self.background_expired():
-        (h, w) = frame.image.shape[:2]
-        logger.debug("setting background")
-        self.background = self.current
-        self.in_motion = False
-        if video_buffer:
-          writer = video_writer.CV2VideoWriter('mp42',
-                                               self.fps,
-                                               '/home/james/Videos',
-                                               video_buffer[0].time.isoformat() + '.avi',
-                                               w,
-                                               h)
-          writer.write(video_buffer)
-        video_buffer = []
-        cv2.destroyWindow('MOTION_DETECTED')
-        # makes destroyWindow work -- may
-        # be a better way to do this:
-        cv2.waitKey(1)
-        continue
-      if not self.in_motion:
-        self.in_motion = self.detect_motion(frame.image)
-      if self.in_motion:
-        logger.debug('motion detected')
-        self.detect_motion(frame.image)
-        self.write_text(frame.image, frame.time.isoformat())
-        cv2.imshow('MOTION_DETECTED', frame.image)
-        video_buffer.append(frame)
-        cv2.moveWindow('MOTION_DETECTED', 0,0)
         cv2.waitKey(1)
