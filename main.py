@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import threading
 import configparser
@@ -11,7 +11,7 @@ import cv2
 import time
 from frame_reader import CV2FrameReader, run_frame_thread
 from queue_handler import QueueHandler
-from motion_detector import CV2FrameDiffMotionDetector
+from motion_detector import CV2FrameDiffMotionDetector, CV2BackgroundSubtractorMOG
 from video_processor import CV2VideoProcessor
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -111,10 +111,10 @@ def main():
 
   try:
     logger.debug('starting motion_detector')
-    motion_detector = CV2FrameDiffMotionDetector(image_queue, motion_timeout, fps, video_format)
+    motion_detector = CV2BackgroundSubtractorMOG(image_queue, motion_timeout, fps, video_format)
     motion_detector.start()
   except Exception as e:
-    logger.critical("Failed to instantiate CV2FrameDiffMotionDetector: %s" % e)
+    logger.critical("Failed to instantiate motion_detector: %s" % e)
     return 1
 
   try: 

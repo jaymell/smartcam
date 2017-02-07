@@ -7,7 +7,42 @@ import multiprocessing
 import queue
 import video_writer
 
+
 logger = logging.getLogger(__name__)
+
+
+def resize_image(image, width):
+  (h, w) = image.height, image.width
+  r = width / float(w)
+  dim = (width, int(h * r))
+  return cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
+
+
+def downsample_image(image):
+  # image = resize_image(image, 500)
+  image = blur_image(image)
+  image = grayscale_image(image)
+  return image
+
+
+def grayscale_image(image):
+  return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+
+def draw_rectangles(image, contours):
+  for c in contours:
+    (x, y, w, h) = cv2.boundingRect(c)
+    cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), 2)
+
+
+def blur_image(image):
+  return cv2.GaussianBlur(image, (21, 21), 0)
+
+
+def write_text(frame, text):
+  (h, w) = frame.height, frame.width
+  font = cv2.FONT_HERSHEY_SIMPLEX
+  cv2.putText(frame.image, text, (int(w*.05),int(h*.9)), font, .75, (255,255,255), 2, cv2.LINE_AA)
 
 
 class MotionDetector(multiprocessing.Process):
@@ -25,6 +60,56 @@ class MotionDetector(multiprocessing.Process):
   @abc.abstractmethod
   def run(self):
     pass
+
+
+class CV2BackgroundSubtractorMOG(MotionDetector):
+  ''' detect motion using cv2.BackgroundSubtractorMOG
+  '''
+
+  def __init__(self, image_queue, motion_timeout, fps, video_format):
+    multiprocessing.Process.__init__(self)
+    self.image_queue = image_queue
+    self.cur_lock = multiprocessing.Lock()
+    self._current = None
+    self.fps = fps
+    self.daemon = True
+    self.video_format = video_format
+    self.fgbg = cv2.createBackgroundSubtractorMOG2()
+
+  def get_frame(self):
+    frame = self.image_queue.get()
+    return frame
+
+  @property
+  def current(self):
+    with self.cur_lock:
+      return self._current
+
+  @current.setter
+  def current(self, frame):
+    with self.cur_lock:
+      self._current = frame
+      self._current.image = downsample_image(frame.image)
+
+  def detect_motion(self):
+    fgmask = self.fgbg.apply(self.current.image)
+    cv2.imshow('BackgroundSubtractorMOG', fgmask)
+    cv2.moveWindow('BackgroundSubtractorMOG', 10, 10)
+    cv2.waitKey(1)
+
+  def run(self):
+    logger.debug("starting motion_detector run loop")
+    video_buffer = []
+    in_motion = False
+    while True:
+      try:
+        frame = self.get_frame()
+      except queue.Empty:
+        continue
+      if frame is None:
+        continue
+      self.current = copy.deepcopy(frame)
+      self.detect_motion()
 
 
 class CV2FrameDiffMotionDetector(MotionDetector):
@@ -73,43 +158,15 @@ class CV2FrameDiffMotionDetector(MotionDetector):
       return False
     return self.current.time - self.last_motion_time >= self.motion_timeout
 
-  def draw_rectangles(self, image, contours):
-    for c in contours:
-      (x, y, w, h) = cv2.boundingRect(c)
-      cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), 2)
-
-  def blur_image(self, image):
-    return cv2.GaussianBlur(image, (21, 21), 0)
-
   def get_frame(self):
     frame = self.image_queue.get()
     return frame
-
-  def resize_image(self, image, width):
-    (h, w) = image.height, image.width
-    r = width / float(w)
-    dim = (width, int(h * r))
-    return cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
-
-  def downsample_image(self, image):
-    # image = self.resize_image(image, 500)
-    image = self.blur_image(image)
-    image = self.grayscale_image(image)
-    return image
-
-  def grayscale_image(self, image):
-    return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
   def get_delta(self):
     return cv2.absdiff(self.background.image, self.current.image)
 
   def background_expired(self):
     return self.current.time - self.bg_timeout >= self.background.time
-
-  def write_text(self, frame, text):
-    (h, w) = frame.height, frame.width
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    cv2.putText(frame.image, text, (int(w*.05),int(h*.9)), font, .75, (255,255,255), 2, cv2.LINE_AA)
 
   @property
   def background(self):
@@ -130,18 +187,16 @@ class CV2FrameDiffMotionDetector(MotionDetector):
   def current(self, frame):
     with self.cur_lock:
       self._current = frame
-      self._current.image = self.downsample_image(frame.image)
+      self._current.image = downsample_image(frame.image)
 
   def run(self):
-    logger.debug("starting image_processor run loop")
+    logger.debug("starting motion_detector run loop")
     video_buffer = []
     in_motion = False
     while True:
       try:
         frame = self.get_frame()
       except queue.Empty:
-        continue
-      if frame is None:
         continue
       if frame is None:
         continue
@@ -153,8 +208,8 @@ class CV2FrameDiffMotionDetector(MotionDetector):
       if in_motion:
         logger.debug('motion detected')
         self.last_motion_time = self.current.time
-        self.draw_rectangles(frame.image, contours)
-        self.write_text(frame, frame.time.isoformat())
+        draw_rectangles(frame.image, contours)
+        write_text(frame, frame.time.isoformat())
         video_buffer.append(frame)
         cv2.imshow('MOTION_DETECTED', frame.image)
         cv2.moveWindow('MOTION_DETECTED', 10, 10)
