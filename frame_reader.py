@@ -55,7 +55,6 @@ class CV2FrameReader(FrameReader):
 
   def get_frame(self):
     result, frame = self._cam.read()
-    logger.debug("Result: %s, %s" % (result, frame))
     if result is True:
       (h, w) = frame.shape[:2]
       return Frame(frame, w, h)
@@ -69,7 +68,7 @@ def run_frame_thread(frame_reader, queue_handler, fps):
   while True:
     try:
       frame = frame_reader.get_frame()
-    except Queue.Empty:
+    except queue.Empty:
       # SHOULD I PAUSE HERE?
       continue
     except Exception as e:
