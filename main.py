@@ -1,4 +1,4 @@
-#!/usr/bin/env python3 
+#!/usr/bin/env python
 
 import threading
 import ConfigParser
@@ -8,6 +8,7 @@ import logging
 import sys
 import multiprocessing
 import cv2
+import time
 from frame_reader import CV2FrameReader, run_frame_thread
 from queue_handler import QueueHandler
 from motion_detector import CV2FrameDiffMotionDetector
@@ -48,6 +49,9 @@ def get_video_source(config):
 def show_video(video_processor, fps):
   while True:
     frame = video_processor.get_frame()
+    if frame is None:
+      time.sleep(.1)
+      continue
     img = frame.image 
     t = frame.time
     cv2.imshow(t.strftime('%Y-%m-%d'), img)

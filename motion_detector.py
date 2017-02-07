@@ -135,6 +135,8 @@ class CV2FrameDiffMotionDetector(MotionDetector):
         frame = self.get_frame()
       except Queue.Empty:
         continue
+      if frame is None:
+        continue
       if self.current:
         self.background = self.current
       self.current = copy.deepcopy(frame)
