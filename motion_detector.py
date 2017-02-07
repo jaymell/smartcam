@@ -4,7 +4,7 @@ import copy
 import datetime
 import logging
 import multiprocessing
-import Queue
+import queue
 import video_writer
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,9 @@ class MotionDetector(multiprocessing.Process):
 
 
 class CV2FrameDiffMotionDetector(MotionDetector):
-
+  ''' detect motion by differencing current and previous
+      frame
+  '''
   def __init__(self, image_queue, motion_timeout, fps, video_format):
     multiprocessing.Process.__init__(self)
     self.image_queue = image_queue
@@ -134,6 +136,8 @@ class CV2FrameDiffMotionDetector(MotionDetector):
       try:
         frame = self.get_frame()
       except Queue.Empty:
+        continue
+      if frame is None:
         continue
       if self.current:
         self.background = self.current

@@ -1,4 +1,4 @@
-import Queue
+import queue
 import multiprocessing
 import logging
 import time
@@ -28,7 +28,7 @@ class QueueHandler(multiprocessing.Process):
     while True:
       try:
         frame = self._queue.get(block=False)
-      except Queue.Empty:
+      except queue.Empty:
         time.sleep(1.0/self.fps)
         continue
       try:

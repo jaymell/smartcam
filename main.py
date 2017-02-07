@@ -1,13 +1,14 @@
 #!/usr/bin/env python3 
 
 import threading
-import ConfigParser
+import configparser
 import os 
 import glob
 import logging
 import sys
 import multiprocessing
 import cv2
+import time
 from frame_reader import CV2FrameReader, run_frame_thread
 from queue_handler import QueueHandler
 from motion_detector import CV2FrameDiffMotionDetector
@@ -28,6 +29,7 @@ def get_device(use_default=True, device_path=None):
       dev_num = f.read().rstrip()
       dev_nums.append(int(dev_num.split(':')[1]))
   dev_nums.sort()
+  logger.debug('dev_nums: %s' % dev_nums)
   if not use_default:
     dev_nums.pop(0)
   return dev_nums[0]
@@ -48,6 +50,9 @@ def get_video_source(config):
 def show_video(video_processor, fps):
   while True:
     frame = video_processor.get_frame()
+    if frame is None:
+      time.sleep(.1)
+      continue
     img = frame.image 
     t = frame.time
     cv2.imshow(t.strftime('%Y-%m-%d'), img)
@@ -55,7 +60,7 @@ def show_video(video_processor, fps):
 
 def parse_config():
   config_file = "config"
-  p = ConfigParser.ConfigParser()
+  p = configparser.ConfigParser()
   p.read(config_file)
   export = {}
   export['VIDEO_SOURCE'] = os.environ.get('VIDEO_SOURCE', p.get('video', 'source'))

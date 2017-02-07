@@ -2,7 +2,7 @@ import abc
 import cv2
 import logging
 import datetime
-import Queue
+import queue
 import multiprocessing
 import time
 
@@ -34,7 +34,7 @@ class Frame(object):
     self._time = time
 
 
-class FrameReader(object):
+class FrameReader:
   """ abstract class for image reader """
 
   __metaclass__ = abc.ABCMeta
@@ -55,6 +55,7 @@ class CV2FrameReader(FrameReader):
 
   def get_frame(self):
     result, frame = self._cam.read()
+    logger.debug("Result: %s, %s" % (result, frame))
     if result is True:
       (h, w) = frame.shape[:2]
       return Frame(frame, w, h)
