@@ -11,6 +11,33 @@ import video_writer
 logger = logging.getLogger(__name__)
 
 
+def _handle_motion(self, frame):
+  logger.debug('motion detected')
+  self.last_motion_time = self.current.time
+  draw_rectangles(frame.image, contours)
+  write_text(frame, frame.time.isoformat())
+  video_buffer.append(frame)
+  cv2.imshow('MOTION_DETECTED', frame.image)
+  # cv2.moveWindow('MOTION_DETECTED', 10, 10)
+  cv2.waitKey(1)
+
+
+def _handle_motion_timeout(self, video_buffer):
+  writer = video_writer.CV2VideoWriter(self.video_format,
+                                       self.fps,
+                                       None,
+                                       video_buffer[0].time.isoformat() + '.avi',
+                                       video_buffer[0].width,
+                                       video_buffer[0].height)
+  writer.write(video_buffer)
+  video_buffer = []
+  self.last_motion_time = None
+  cv2.destroyWindow('MOTION_DETECTED')
+  # makes destroyWindow work -- may
+  # be a better way to do this:
+  cv2.waitKey(1)
+
+
 def resize_image(image, width):
   (h, w) = image.height, image.width
   r = width / float(w)
@@ -267,8 +294,12 @@ class CV2FrameDiffMotionDetector(MotionDetector):
   @current.setter
   def current(self, frame):
     with self.cur_lock:
+      if self._current is not None:
+        self.background = self._current
       self._current = frame
       self._current.image = downsample_image(frame.image)
+      if self.background is None:
+        self.background = self._current
 
   def run(self):
     logger.debug("starting motion_detector run loop")
@@ -281,34 +312,12 @@ class CV2FrameDiffMotionDetector(MotionDetector):
         continue
       if frame is None:
         continue
-      if self.current:
-        self.background = self.current
       self.current = copy.deepcopy(frame)
-      if self.background:
-        in_motion, contours = self.detect_motion()
-      if in_motion:
-        logger.debug('motion detected')
-        self.last_motion_time = self.current.time
-        draw_rectangles(frame.image, contours)
-        write_text(frame, frame.time.isoformat())
-        video_buffer.append(frame)
-        cv2.imshow('MOTION_DETECTED', frame.image)
-        # cv2.moveWindow('MOTION_DETECTED', 10, 10)
-        cv2.waitKey(1)
+      contours = self.detect_motion()
+      if contours is not None:
+
       elif self.motion_is_timed_out():
-        writer = video_writer.CV2VideoWriter(self.video_format,
-                                             self.fps,
-                                             None,
-                                             video_buffer[0].time.isoformat() + '.avi',
-                                             video_buffer[0].width,
-                                             video_buffer[0].height)
-        writer.write(video_buffer)
-        video_buffer = []
-        self.last_motion_time = None
-        cv2.destroyWindow('MOTION_DETECTED')
-        # makes destroyWindow work -- may
-        # be a better way to do this:
-        cv2.waitKey(1)
+
       ### not currently in motion but still within timeout:
       elif self.last_motion_time != None:
         video_buffer.append(frame)
