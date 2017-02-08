@@ -40,6 +40,8 @@ def blur_image(image):
 
 
 def find_contours(image, threshold=1200):
+    cv2.imshow('findContours', image)
+    cv2.waitKey(1)
     thresh = cv2.threshold(image, 50, 255, cv2.THRESH_BINARY)[1]
     (_, _contours, _) = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not _contours:
@@ -60,7 +62,7 @@ class MotionDetector(multiprocessing.Process):
   __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
-  def __init__(self, image_queue, bg_timeout, fps, video_format):
+  def __init__(self, image_queue, bg_timeout, fps, video_format, debug=False):
     pass
 
   @abc.abstractmethod
@@ -76,7 +78,7 @@ class CV2BackgroundSubtractorMOG(MotionDetector):
   ''' detect motion using cv2.BackgroundSubtractorMOG
   '''
 
-  def __init__(self, image_queue, motion_timeout, fps, video_format):
+  def __init__(self, image_queue, motion_timeout, fps, video_format, debug=False):
     multiprocessing.Process.__init__(self)
     self.image_queue = image_queue
     self.cur_lock = multiprocessing.Lock()
@@ -84,6 +86,7 @@ class CV2BackgroundSubtractorMOG(MotionDetector):
     self.fps = fps
     self.daemon = True
     self.video_format = video_format
+    self.debug = debug
     self.fgbg = cv2.bgsegm.createBackgroundSubtractorMOG()
 
   def get_frame(self):
@@ -103,6 +106,10 @@ class CV2BackgroundSubtractorMOG(MotionDetector):
 
   def detect_motion(self):
     fgmask = self.fgbg.apply(self.current.image)
+    if self.debug:
+      cv2.imshow('BackgroundSubtractorMOG', fgmask)
+      # cv2.moveWindow('BackgroundSubtractorMOG', 600, 800)
+      cv2.waitKey(1)
     contours = find_contours(fgmask)
     return contours
 
@@ -124,7 +131,7 @@ class CV2BackgroundSubtractorMOG(MotionDetector):
         write_text(frame, frame.time.isoformat())
         video_buffer.append(frame)
         cv2.imshow('MOTION_DETECTED', frame.image)
-        cv2.moveWindow('MOTION_DETECTED', 10, 10)
+        # cv2.moveWindow('MOTION_DETECTED', 10, 10)
         cv2.waitKey(1)
 
 
@@ -132,7 +139,7 @@ class CV2BackgroundSubtractorGMG(MotionDetector):
   ''' detect motion using cv2.BackgroundSubtractorGMG
   '''
 
-  def __init__(self, image_queue, motion_timeout, fps, video_format):
+  def __init__(self, image_queue, motion_timeout, fps, video_format, debug=False):
     multiprocessing.Process.__init__(self)
     self.image_queue = image_queue
     self.cur_lock = multiprocessing.Lock()
@@ -140,6 +147,7 @@ class CV2BackgroundSubtractorGMG(MotionDetector):
     self.fps = fps
     self.daemon = True
     self.video_format = video_format
+    self.debug = debug
     self.fgbg = cv2.bgsegm.createBackgroundSubtractorGMG()
 
   def get_frame(self):
@@ -161,6 +169,10 @@ class CV2BackgroundSubtractorGMG(MotionDetector):
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
     fgmask = self.fgbg.apply(self.current.image)
     fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel)
+    if self.debug:
+      cv2.imshow('BackgroundSubtractorGMG', fgmask)
+      # cv2.moveWindow('BackgroundSubtractorGMG', 200, 200)
+      cv2.waitKey(1)
     contours = find_contours(self.current.image)
     return contours
 
@@ -182,7 +194,7 @@ class CV2BackgroundSubtractorGMG(MotionDetector):
         write_text(frame, frame.time.isoformat())
         video_buffer.append(frame)
         cv2.imshow('MOTION_DETECTED', frame.image)
-        cv2.moveWindow('MOTION_DETECTED', 10, 10)
+        # cv2.moveWindow('MOTION_DETECTED', 10, 10)
         cv2.waitKey(1)
 
 
@@ -190,7 +202,7 @@ class CV2FrameDiffMotionDetector(MotionDetector):
   ''' detect motion by differencing current and previous
       frame
   '''
-  def __init__(self, image_queue, motion_timeout, fps, video_format):
+  def __init__(self, image_queue, motion_timeout, fps, video_format, debug=False):
     multiprocessing.Process.__init__(self)
     self.image_queue = image_queue
     self.bg_lock = multiprocessing.Lock()
@@ -202,6 +214,7 @@ class CV2FrameDiffMotionDetector(MotionDetector):
     self.daemon = True
     self.last_motion_time = None
     self.video_format = video_format
+    self.debug = debug
 
   def detect_motion(self):
     delta = self.get_delta()
@@ -280,12 +293,12 @@ class CV2FrameDiffMotionDetector(MotionDetector):
         write_text(frame, frame.time.isoformat())
         video_buffer.append(frame)
         cv2.imshow('MOTION_DETECTED', frame.image)
-        cv2.moveWindow('MOTION_DETECTED', 10, 10)
+        # cv2.moveWindow('MOTION_DETECTED', 10, 10)
         cv2.waitKey(1)
       elif self.motion_is_timed_out():
         writer = video_writer.CV2VideoWriter(self.video_format,
                                              self.fps,
-                                             '/home/james/Videos',
+                                             None,
                                              video_buffer[0].time.isoformat() + '.avi',
                                              video_buffer[0].width,
                                              video_buffer[0].height)

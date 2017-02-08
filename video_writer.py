@@ -27,7 +27,10 @@ class CV2VideoWriter(VideoWriter):
   def __init__(self, fmt, fps, path, file_name, width, height, is_color=True):
     self.fmt = fmt.upper()
     self.fps = fps
-    self.path = path
+    if path is not None:
+      self.path = path
+    else:
+      self.path = os.path.join(os.path.expanduser('~'),'Videos')
     self.file_name = file_name 
     self.full_path = os.path.join(self.path, self.file_name)
     self.width = width
