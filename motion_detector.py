@@ -74,7 +74,7 @@ class CV2BackgroundSubtractorMOG(MotionDetector):
     self.fps = fps
     self.daemon = True
     self.video_format = video_format
-    self.fgbg = cv2.createBackgroundSubtractorMOG2()
+    self.fgbg = cv2.bgsegm.createBackgroundSubtractorMOG()
 
   def get_frame(self):
     frame = self.image_queue.get()
@@ -89,7 +89,7 @@ class CV2BackgroundSubtractorMOG(MotionDetector):
   def current(self, frame):
     with self.cur_lock:
       self._current = frame
-      self._current.image = downsample_image(frame.image)
+      # self._current.image = downsample_image(frame.image)
 
   def detect_motion(self):
     fgmask = self.fgbg.apply(self.current.image)
@@ -111,6 +111,57 @@ class CV2BackgroundSubtractorMOG(MotionDetector):
       self.current = copy.deepcopy(frame)
       self.detect_motion()
 
+
+class CV2BackgroundSubtractorGMG(MotionDetector):
+  ''' detect motion using cv2.BackgroundSubtractorGMG
+  '''
+
+  def __init__(self, image_queue, motion_timeout, fps, video_format):
+    multiprocessing.Process.__init__(self)
+    self.image_queue = image_queue
+    self.cur_lock = multiprocessing.Lock()
+    self._current = None
+    self.fps = fps
+    self.daemon = True
+    self.video_format = video_format
+    self.fgbg = cv2.bgsegm.createBackgroundSubtractorGMG()
+
+  def get_frame(self):
+    frame = self.image_queue.get()
+    return frame
+
+  @property
+  def current(self):
+    with self.cur_lock:
+      return self._current
+
+  @current.setter
+  def current(self, frame):
+    with self.cur_lock:
+      self._current = frame
+      # self._current.image = downsample_image(frame.image)
+
+  def detect_motion(self):
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
+    fgmask = self.fgbg.apply(self.current.image)
+    fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel)
+    cv2.imshow('BackgroundSubtractorGMG', fgmask)
+    cv2.moveWindow('BackgroundSubtractorGMG', 10, 10)
+    cv2.waitKey(1)
+
+  def run(self):
+    logger.debug("starting motion_detector run loop")
+    video_buffer = []
+    in_motion = False
+    while True:
+      try:
+        frame = self.get_frame()
+      except queue.Empty:
+        continue
+      if frame is None:
+        continue
+      self.current = copy.deepcopy(frame)
+      self.detect_motion()
 
 class CV2FrameDiffMotionDetector(MotionDetector):
   ''' detect motion by differencing current and previous
