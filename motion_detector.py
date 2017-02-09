@@ -46,8 +46,7 @@ def find_contours(image, threshold=1200):
     (_, _contours, _) = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not _contours:
       return None
-    contours = []
-    [ contours.append(i) for i in _contours if cv2.contourArea(i) > threshold ]
+    contours = [ i for i in _contours if cv2.contourArea(i) > threshold ]
     return contours
 
 
@@ -92,7 +91,6 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
     logger.debug('motion detected')
     self.last_motion_time = self.frame.time
     draw_rectangles(self.frame.image, contours)
-    write_text(self.frame, self.frame.time.isoformat())
     self.video_buffer.append(self.frame)
     cv2.imshow('MOTION_DETECTED', self.frame.image)
     # cv2.moveWindow('MOTION_DETECTED', 10, 10)
@@ -137,7 +135,8 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
         continue
       self.motion_detector.current = copy.deepcopy(self.frame)
       contours = self.motion_detector.detect_motion()
-      if contours is not None:
+      write_text(self.frame, self.frame.time.isoformat())
+      if contours:
         self.handle_motion(contours)
       elif self.motion_is_timed_out():
         self.write_video()
@@ -186,7 +185,6 @@ class CV2BackgroundSubtractorMOG(MotionDetector):
     fgmask = self.fgbg.apply(self.current.image)
     if self.debug:
       cv2.imshow('BackgroundSubtractorMOG', fgmask)
-      # cv2.moveWindow('BackgroundSubtractorMOG', 600, 800)
       cv2.waitKey(1)
     contours = find_contours(fgmask)
     return contours
@@ -216,14 +214,13 @@ class CV2BackgroundSubtractorGMG(MotionDetector):
       self._current.image = downsample_image(frame.image)
 
   def detect_motion(self):
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
     fgmask = self.fgbg.apply(self.current.image)
     fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel)
     if self.debug:
       cv2.imshow('BackgroundSubtractorGMG', fgmask)
-      # cv2.moveWindow('BackgroundSubtractorGMG', 200, 200)
       cv2.waitKey(1)
-    contours = find_contours(self.current.image)
+    contours = find_contours(fgmask)
     return contours
 
 
@@ -242,21 +239,19 @@ class CV2FrameDiffMotionDetector(MotionDetector):
 
   def detect_motion(self):
     delta = self.get_delta()
+    if delta is None:
+      return None
+    if self.debug:
+      cv2.imshow('CV2FrameDiffMotionDetector', delta)
+      cv2.waitKey(1)
     thresh = cv2.threshold(delta, 50, 255, cv2.THRESH_BINARY)[1]
     thresh = cv2.dilate(thresh, None, iterations=2)
-    (_, _contours, _) = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if not _contours:
-      return False, None
-    contours = []
-    motion_detected = False
-    for c in _contours:
-      # FIXME: don't hard-code this value
-      if cv2.contourArea(c) > 1000:
-        motion_detected = True
-        contours.append(c)
-    return motion_detected, contours
+    contours = find_contours(thresh)
+    return contours
 
   def get_delta(self):
+    if self.background is None or self.current is None:
+      return None
     return cv2.absdiff(self.background.image, self.current.image)
 
   @property
