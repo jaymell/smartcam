@@ -11,33 +11,6 @@ import video_writer
 logger = logging.getLogger(__name__)
 
 
-def _handle_motion(self, frame):
-  logger.debug('motion detected')
-  self.last_motion_time = self.current.time
-  draw_rectangles(frame.image, contours)
-  write_text(frame, frame.time.isoformat())
-  video_buffer.append(frame)
-  cv2.imshow('MOTION_DETECTED', frame.image)
-  # cv2.moveWindow('MOTION_DETECTED', 10, 10)
-  cv2.waitKey(1)
-
-
-def _handle_motion_timeout(self, video_buffer):
-  writer = video_writer.CV2VideoWriter(self.video_format,
-                                       self.fps,
-                                       None,
-                                       video_buffer[0].time.isoformat() + '.avi',
-                                       video_buffer[0].width,
-                                       video_buffer[0].height)
-  writer.write(video_buffer)
-  video_buffer = []
-  self.last_motion_time = None
-  cv2.destroyWindow('MOTION_DETECTED')
-  # makes destroyWindow work -- may
-  # be a better way to do this:
-  cv2.waitKey(1)
-
-
 def resize_image(image, width):
   (h, w) = image.height, image.width
   r = width / float(w)
@@ -84,16 +57,17 @@ def write_text(frame, text):
   cv2.putText(frame.image, text, (int(w*.05),int(h*.9)), font, .75, (255,255,255), 2, cv2.LINE_AA)
 
 
-class MotionDetector(multiprocessing.Process):
+class MotionDetectorProcess(multiprocessing.Process):
+  ''' abstract class for handling motion detection thread loop '''
 
   __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
-  def __init__(self, image_queue, bg_timeout, fps, video_format, debug=False):
+  def __init__(self, motion_detector, image_queue, motion_timeout, fps, video_format):
     pass
 
   @abc.abstractmethod
-  def detect_motion(self):
+  def get_frame(self):
     pass
 
   @abc.abstractmethod
@@ -101,24 +75,101 @@ class MotionDetector(multiprocessing.Process):
     pass
 
 
-class CV2BackgroundSubtractorMOG(MotionDetector):
-  ''' detect motion using cv2.BackgroundSubtractorMOG
-  '''
+class CV2MotionDetectorProcess(MotionDetectorProcess):
 
-  def __init__(self, image_queue, motion_timeout, fps, video_format, debug=False):
+  def __init__(self, motion_detector, image_queue, motion_timeout, fps, video_format):
     multiprocessing.Process.__init__(self)
+    self.motion_detector = motion_detector
     self.image_queue = image_queue
-    self.cur_lock = multiprocessing.Lock()
-    self._current = None
+    self.motion_timeout = datetime.timedelta(0, motion_timeout)
     self.fps = fps
-    self.daemon = True
     self.video_format = video_format
-    self.debug = debug
-    self.fgbg = cv2.bgsegm.createBackgroundSubtractorMOG()
+    self.video_buffer = []
+    self.last_motion_time = None
+    self.frame = None
+
+  def handle_motion(self, contours):
+    logger.debug('motion detected')
+    self.last_motion_time = self.frame.time
+    draw_rectangles(self.frame.image, contours)
+    write_text(self.frame, self.frame.time.isoformat())
+    self.video_buffer.append(self.frame)
+    cv2.imshow('MOTION_DETECTED', self.frame.image)
+    # cv2.moveWindow('MOTION_DETECTED', 10, 10)
+    cv2.waitKey(1)
+
+  def write_video(self):
+    writer = video_writer.CV2VideoWriter(self.video_format,
+                                         self.fps,
+                                         None,
+                                         self.video_buffer[0].time.isoformat() + '.avi',
+                                         self.video_buffer[0].width,
+                                         self.video_buffer[0].height)
+    writer.write(self.video_buffer)
+    video_buffer = []
+    self.last_motion_time = None
+    cv2.destroyWindow('MOTION_DETECTED')
+    # makes destroyWindow work -- may
+    # be a better way to do this:
+    cv2.waitKey(1)
+
+  def motion_is_timed_out(self):
+    ''' return true/false -- has it been longer than self.motion_timeout
+        since motion was detected? '''
+    if self.last_motion_time is None:
+      return False
+    return self.frame.time - self.last_motion_time >= self.motion_timeout
 
   def get_frame(self):
     frame = self.image_queue.get()
     return frame
+
+  def run(self):
+    logger.debug("starting motion_detector thread loop")
+    video_buffer = []
+    in_motion = False
+    while True:
+      try:
+        self.frame = self.get_frame()
+      except queue.Empty:
+        continue
+      if self.frame is None:
+        continue
+      self.motion_detector.current = copy.deepcopy(self.frame)
+      contours = self.motion_detector.detect_motion()
+      if contours is not None:
+        self.handle_motion(contours)
+      elif self.motion_is_timed_out():
+        self.write_video()
+      ### not currently in motion but still within timeout:
+      elif self.last_motion_time != None:
+        self.video_buffer.append(self.frame)
+
+
+class MotionDetector(multiprocessing.Process):
+
+  __metaclass__ = abc.ABCMeta
+
+  @abc.abstractmethod
+  def __init__(self, debug=False):
+    pass
+
+  @abc.abstractmethod
+  def detect_motion(self):
+    pass
+
+
+class CV2BackgroundSubtractorMOG(MotionDetector):
+  ''' detect motion using cv2.BackgroundSubtractorMOG
+  '''
+
+  def __init__(self, debug=False):
+    multiprocessing.Process.__init__(self)
+    self.cur_lock = multiprocessing.Lock()
+    self._current = None
+    self.daemon = True
+    self.debug = debug
+    self.fgbg = cv2.bgsegm.createBackgroundSubtractorMOG()
 
   @property
   def current(self):
@@ -140,46 +191,18 @@ class CV2BackgroundSubtractorMOG(MotionDetector):
     contours = find_contours(fgmask)
     return contours
 
-  def run(self):
-    logger.debug("starting motion_detector run loop")
-    video_buffer = []
-    in_motion = False
-    while True:
-      try:
-        frame = self.get_frame()
-      except queue.Empty:
-        continue
-      if frame is None:
-        continue
-      self.current = copy.deepcopy(frame)
-      contours = self.detect_motion()
-      if contours is not None:
-        draw_rectangles(frame.image, contours)
-        write_text(frame, frame.time.isoformat())
-        video_buffer.append(frame)
-        cv2.imshow('MOTION_DETECTED', frame.image)
-        # cv2.moveWindow('MOTION_DETECTED', 10, 10)
-        cv2.waitKey(1)
-
 
 class CV2BackgroundSubtractorGMG(MotionDetector):
   ''' detect motion using cv2.BackgroundSubtractorGMG
   '''
 
-  def __init__(self, image_queue, motion_timeout, fps, video_format, debug=False):
+  def __init__(self, debug=False):
     multiprocessing.Process.__init__(self)
-    self.image_queue = image_queue
     self.cur_lock = multiprocessing.Lock()
     self._current = None
-    self.fps = fps
     self.daemon = True
-    self.video_format = video_format
     self.debug = debug
     self.fgbg = cv2.bgsegm.createBackgroundSubtractorGMG()
-
-  def get_frame(self):
-    frame = self.image_queue.get()
-    return frame
 
   @property
   def current(self):
@@ -203,44 +226,18 @@ class CV2BackgroundSubtractorGMG(MotionDetector):
     contours = find_contours(self.current.image)
     return contours
 
-  def run(self):
-    logger.debug("starting motion_detector run loop")
-    video_buffer = []
-    in_motion = False
-    while True:
-      try:
-        frame = self.get_frame()
-      except queue.Empty:
-        continue
-      if frame is None:
-        continue
-      self.current = copy.deepcopy(frame)
-      contours = self.detect_motion()
-      if contours is not None:
-        draw_rectangles(frame.image, contours)
-        write_text(frame, frame.time.isoformat())
-        video_buffer.append(frame)
-        cv2.imshow('MOTION_DETECTED', frame.image)
-        # cv2.moveWindow('MOTION_DETECTED', 10, 10)
-        cv2.waitKey(1)
-
 
 class CV2FrameDiffMotionDetector(MotionDetector):
   ''' detect motion by differencing current and previous
       frame
   '''
-  def __init__(self, image_queue, motion_timeout, fps, video_format, debug=False):
+  def __init__(self, debug=False):
     multiprocessing.Process.__init__(self)
-    self.image_queue = image_queue
     self.bg_lock = multiprocessing.Lock()
     self.cur_lock = multiprocessing.Lock()
-    self.motion_timeout = datetime.timedelta(0, motion_timeout)
     self._current = None
     self._background = None
-    self.fps = fps
     self.daemon = True
-    self.last_motion_time = None
-    self.video_format = video_format
     self.debug = debug
 
   def detect_motion(self):
@@ -259,22 +256,8 @@ class CV2FrameDiffMotionDetector(MotionDetector):
         contours.append(c)
     return motion_detected, contours
 
-  def motion_is_timed_out(self):
-    ''' return true/false -- has it been longer than self.motion_timeout
-        since motion was detected? '''
-    if self.last_motion_time is None:
-      return False
-    return self.current.time - self.last_motion_time >= self.motion_timeout
-
-  def get_frame(self):
-    frame = self.image_queue.get()
-    return frame
-
   def get_delta(self):
     return cv2.absdiff(self.background.image, self.current.image)
-
-  def background_expired(self):
-    return self.current.time - self.bg_timeout >= self.background.time
 
   @property
   def background(self):
@@ -301,23 +284,3 @@ class CV2FrameDiffMotionDetector(MotionDetector):
       if self.background is None:
         self.background = self._current
 
-  def run(self):
-    logger.debug("starting motion_detector run loop")
-    video_buffer = []
-    in_motion = False
-    while True:
-      try:
-        frame = self.get_frame()
-      except queue.Empty:
-        continue
-      if frame is None:
-        continue
-      self.current = copy.deepcopy(frame)
-      contours = self.detect_motion()
-      if contours is not None:
-
-      elif self.motion_is_timed_out():
-
-      ### not currently in motion but still within timeout:
-      elif self.last_motion_time != None:
-        video_buffer.append(frame)
