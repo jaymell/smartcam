@@ -114,9 +114,9 @@ def main():
 
   try:
     logger.debug('initializing motion_detector')
-    motion_detector = CV2BackgroundSubtractorMOG(debug=True)
+    # motion_detector = CV2BackgroundSubtractorMOG(debug=True)
     # motion_detector = CV2BackgroundSubtractorGMG(debug=True)
-    # motion_detector = CV2FrameDiffMotionDetector(debug=True)
+    motion_detector = CV2FrameDiffMotionDetector(debug=True)
     motion_detector.start()
   except Exception as e:
     logger.critical("Failed to instantiate motion_detector: %s" % e)

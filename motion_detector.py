@@ -29,6 +29,10 @@ def grayscale_image(image):
   return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
 
+def threshold_image(image, threshold=10):
+  return cv2.threshold(image, threshold, 255, cv2.THRESH_BINARY)[1]
+
+
 def draw_rectangles(image, contours):
   for c in contours:
     (x, y, w, h) = cv2.boundingRect(c)
@@ -40,10 +44,7 @@ def blur_image(image):
 
 
 def find_contours(image, threshold=1200):
-    cv2.imshow('findContours', image)
-    cv2.waitKey(1)
-    thresh = cv2.threshold(image, 50, 255, cv2.THRESH_BINARY)[1]
-    (_, _contours, _) = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    (_, _contours, _) = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not _contours:
       return None
     contours = [ i for i in _contours if cv2.contourArea(i) > threshold ]
@@ -93,7 +94,6 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
     draw_rectangles(self.frame.image, contours)
     self.video_buffer.append(self.frame)
     cv2.imshow('MOTION_DETECTED', self.frame.image)
-    # cv2.moveWindow('MOTION_DETECTED', 10, 10)
     cv2.waitKey(1)
 
   def write_video(self):
@@ -104,7 +104,7 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
                                          self.video_buffer[0].width,
                                          self.video_buffer[0].height)
     writer.write(self.video_buffer)
-    video_buffer = []
+    self.video_buffer = []
     self.last_motion_time = None
     cv2.destroyWindow('MOTION_DETECTED')
     # makes destroyWindow work -- may
@@ -134,13 +134,13 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
       if self.frame is None:
         continue
       self.motion_detector.current = copy.deepcopy(self.frame)
-      contours = self.motion_detector.detect_motion()
       write_text(self.frame, self.frame.time.isoformat())
+      contours = self.motion_detector.detect_motion()
       if contours:
         self.handle_motion(contours)
       elif self.motion_is_timed_out():
         self.write_video()
-      ### not currently in motion but still within timeout:
+      ### not currently in motion but still within timeout period:
       elif self.last_motion_time != None:
         self.video_buffer.append(self.frame)
 
@@ -183,8 +183,9 @@ class CV2BackgroundSubtractorMOG(MotionDetector):
 
   def detect_motion(self):
     fgmask = self.fgbg.apply(self.current.image)
+    thresh = threshold_image(fgmask)
     if self.debug:
-      cv2.imshow('BackgroundSubtractorMOG', fgmask)
+      cv2.imshow('BackgroundSubtractorMOG', thresh)
       cv2.waitKey(1)
     contours = find_contours(fgmask)
     return contours
@@ -217,10 +218,11 @@ class CV2BackgroundSubtractorGMG(MotionDetector):
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
     fgmask = self.fgbg.apply(self.current.image)
     fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel)
+    thresh = threshold_image(fgmask)
     if self.debug:
-      cv2.imshow('BackgroundSubtractorGMG', fgmask)
+      cv2.imshow('BackgroundSubtractorGMG', thresh)
       cv2.waitKey(1)
-    contours = find_contours(fgmask)
+    contours = find_contours(thresh)
     return contours
 
 
@@ -244,7 +246,7 @@ class CV2FrameDiffMotionDetector(MotionDetector):
     if self.debug:
       cv2.imshow('CV2FrameDiffMotionDetector', delta)
       cv2.waitKey(1)
-    thresh = cv2.threshold(delta, 50, 255, cv2.THRESH_BINARY)[1]
+    thresh = threshold_image(delta)
     thresh = cv2.dilate(thresh, None, iterations=2)
     contours = find_contours(thresh)
     return contours

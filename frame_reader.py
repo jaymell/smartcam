@@ -65,6 +65,10 @@ class CV2FrameReader(FrameReader):
 
 def run_frame_thread(frame_reader, queue_handler, fps):
   logging.debug("starting frame_reader run loop")
+  # dump initial frames, as it seems certain cameras
+  # flub the first few for some reason:
+  for i in range(5):
+    frame_reader.get_frame()
   while True:
     try:
       frame = frame_reader.get_frame()
