@@ -24,14 +24,19 @@ class VideoWriter(object):
 class CV2VideoWriter(VideoWriter):
   """ opencv2 video writer """
 
-  def __init__(self, fmt, fps, path, file_name, width, height, is_color=True):
+  def __init__(self, fmt, fps, path, file_name, ext, width, height, is_color=True):
     self.fmt = fmt.upper()
     self.fps = fps
     if path is not None:
       self.path = path
     else:
-      self.path = os.path.join(os.path.expanduser('~'),'Videos')
-    self.file_name = file_name 
+      self.path = os.path.join(os.path.expanduser('~'), 'Videos')
+    self.file_name = file_name
+    if ext is None:
+      _ext = 'avi'
+    else:
+       _ext = ext
+    self.file_name = self.file_name + '.' + _ext
     self.full_path = os.path.join(self.path, self.file_name)
     self.width = width
     self.height = height

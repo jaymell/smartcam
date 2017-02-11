@@ -1,21 +1,21 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
  
 import cv2
-import cv2.cv
 import time
-import reader
+from main import get_device
 
 if __name__ == '__main__' :
  
-    video = cv2.VideoCapture(reader.get_device());
-    writer = cv2.VideoWriter('/tmp/out.avi', cv2.cv.CV_FOURCC('M','J','P','G'), 14.0, (640,480), True)
+    fmt = 'MP42'
+    video = cv2.VideoCapture(get_device(use_default=False));
+    writer = cv2.VideoWriter('/tmp/out', cv2.VideoWriter_fourcc(*fmt), 14.0, (640,480), True)
     # Number of frames to capture
     num_frames = 100;
  
     # Start time
     start = time.time()
     # Grab a few frames
-    for i in xrange(0, num_frames):
+    for i in range(0, num_frames):
         ret, frame = video.read()
         print(frame.shape)
         # img = cv2.imread(frame, 0)

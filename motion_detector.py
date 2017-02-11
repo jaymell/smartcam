@@ -4,12 +4,28 @@ import copy
 import datetime
 import logging
 import multiprocessing
+import numpy as np
 import queue
 import video_writer
 
 
 logger = logging.getLogger(__name__)
 
+
+def equalize_image(image):
+  ''' currently using to improve contrast of low-light images --
+      see this page: 
+      docs.opencv.org/3.2.0/d5/daf/tutorial_py_histogram_equalization.html
+  '''
+
+  # hist, bins = np.histogram(image.flatten(), 256,[0,256])
+  # cdf = hist.cumsum()
+  # cdf_normalized = cdf * hist.max() / cdf.max()
+  # cdf_m = np.ma.masked_equal(cdf,0)
+  # cdf_m = (cdf_m - cdf_m.min())*255/(cdf_m.max()-cdf_m.min())
+  # cdf = np.ma.filled(cdf_m,0).astype('uint8')
+  # return cdf[image]
+  return cv2.equalizeHist(image)
 
 def resize_image(image, width):
   (h, w) = image.height, image.width
@@ -100,7 +116,8 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
     writer = video_writer.CV2VideoWriter(self.video_format,
                                          self.fps,
                                          None,
-                                         self.video_buffer[0].time.isoformat() + '.avi',
+                                         self.video_buffer[0].time.isoformat(),
+                                         None,
                                          self.video_buffer[0].width,
                                          self.video_buffer[0].height)
     writer.write(self.video_buffer)
@@ -179,8 +196,8 @@ class CV2BackgroundSubtractorMOG(MotionDetector):
   def current(self, frame):
     with self.cur_lock:
       self._current = frame
-      self._current.image = downsample_image(frame.image)
-
+      self._current.image = equalize_image(downsample_image(frame.image))
+     
   def detect_motion(self):
     fgmask = self.fgbg.apply(self.current.image)
     thresh = threshold_image(fgmask)
