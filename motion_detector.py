@@ -6,7 +6,7 @@ import logging
 import multiprocessing
 import numpy as np
 import queue
-import video_writer
+from video_writer import CV2VideoWriter
 
 
 logger = logging.getLogger(__name__)
@@ -27,6 +27,7 @@ def equalize_image(image):
   # return cdf[image]
   return cv2.equalizeHist(image)
 
+
 def resize_image(image, width):
   (h, w) = image.height, image.width
   r = width / float(w)
@@ -38,6 +39,7 @@ def downsample_image(image):
   # image = resize_image(image, 500)
   image = blur_image(image)
   image = grayscale_image(image)
+  # image = cv2.Canny(image, 30, 200)
   return image
 
 
@@ -45,7 +47,7 @@ def grayscale_image(image):
   return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
 
-def threshold_image(image, threshold=10):
+def threshold_image(image, threshold=50):
   return cv2.threshold(image, threshold, 255, cv2.THRESH_BINARY)[1]
 
 
@@ -55,12 +57,16 @@ def draw_rectangles(image, contours):
     cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
 
+def draw_contours(image, contours):
+  cv2.drawContours(image, contours, -1, (0, 0, 255), 3)
+
+
 def blur_image(image):
   return cv2.GaussianBlur(image, (21, 21), 0)
 
 
-def find_contours(image, threshold=1200):
-    (_, _contours, _) = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+def find_contours(image, threshold=100):
+    (_, _contours, _) = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     if not _contours:
       return None
     contours = [ i for i in _contours if cv2.contourArea(i) > threshold ]
@@ -107,19 +113,20 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
   def handle_motion(self, contours):
     logger.debug('motion detected')
     self.last_motion_time = self.frame.time
-    draw_rectangles(self.frame.image, contours)
+    # draw_rectangles(self.frame.image, contours)
+    draw_contours(self.frame.image, contours)
     self.video_buffer.append(self.frame)
     cv2.imshow('MOTION_DETECTED', self.frame.image)
     cv2.waitKey(1)
 
   def write_video(self):
-    writer = video_writer.CV2VideoWriter(self.video_format,
-                                         self.fps,
-                                         None,
-                                         self.video_buffer[0].time.isoformat(),
-                                         None,
-                                         self.video_buffer[0].width,
-                                         self.video_buffer[0].height)
+    writer = CV2VideoWriter(self.video_format,
+                            self.fps,
+                            None,
+                            self.video_buffer[0].time.isoformat(),
+                            None,
+                            self.video_buffer[0].width,
+                            self.video_buffer[0].height)
     writer.write(self.video_buffer)
     self.video_buffer = []
     self.last_motion_time = None
@@ -196,13 +203,13 @@ class CV2BackgroundSubtractorMOG(MotionDetector):
   def current(self, frame):
     with self.cur_lock:
       self._current = frame
-      self._current.image = equalize_image(downsample_image(frame.image))
+      self._current.image = downsample_image(frame.image)
      
   def detect_motion(self):
-    fgmask = self.fgbg.apply(self.current.image)
-    thresh = threshold_image(fgmask)
+    fgmask = threshold_image(self.current.image)
+    fgmask = self.fgbg.apply(fgmask)
     if self.debug:
-      cv2.imshow('BackgroundSubtractorMOG', thresh)
+      cv2.imshow('BackgroundSubtractorMOG', fgmask)
       cv2.waitKey(1)
     contours = find_contours(fgmask)
     return contours
