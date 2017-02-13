@@ -1,17 +1,26 @@
 [video]
 
-# source options:
-# device number -- eg 0
 # 'device,non-default' to help avoid built-in 
-#   webcams from being read; 
-# just 'device' otherwise to use first device found
-source=0
+# webcams from being read; 
+# just 'device' otherwise:
+source=device,non-default
+#source=device
 
-#video_format=mp42
-video_format=mjpg
+# time in seconds to continue writing 
+# video after last motion detected
+motion_timeout=5
 
-# time (in seconds) between background shots:
-motion_timeout=30
-
-# sets interval at which main loop runs -- 14 appears to be about the max for current cam:
+# sets interval at which main loop runs:
 fps=14
+
+#video_format=mjpg
+video_format=mp42
+
+[storage]
+
+# local or s3
+destination=s3
+local_folder=</home/myUser/Videos>
+s3_bucket=<myBucketName>
+s3_folder=videos
+
