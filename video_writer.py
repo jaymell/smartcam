@@ -45,7 +45,7 @@ class CV2VideoWriter(VideoWriter):
       self.writer = cv2.VideoWriter(self.full_path,
                                     cv2.VideoWriter_fourcc(*self.fmt), 
                                     self.fps, 
-                                    (self.width,self.height), 
+                                    (self.width, self.height), 
                                     self.is_color)
     except Exception as e:
       logger.debug('Failed to instantiate cv2.VideoWriter')

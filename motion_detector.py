@@ -46,19 +46,27 @@ def downsample_image(image):
 def grayscale_image(image):
   return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
+def adaptive_threshold_image(image):
+  return cv2.adaptiveThreshold(image, 
+                               255, 
+                               cv2.ADAPTIVE_THRESH_MEAN_C,
+                               cv2.THRESH_BINARY,
+                               11,
+                               2)
 
-def threshold_image(image, threshold=50):
+
+def threshold_image(image, threshold=25):
   return cv2.threshold(image, threshold, 255, cv2.THRESH_BINARY)[1]
 
 
 def draw_rectangles(image, contours):
   for c in contours:
     (x, y, w, h) = cv2.boundingRect(c)
-    cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), 2)
+    cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 1)
 
 
 def draw_contours(image, contours):
-  cv2.drawContours(image, contours, -1, (0, 0, 255), 3)
+  cv2.drawContours(image, contours, -1, (0, 0, 255), 1)
 
 
 def blur_image(image):
@@ -113,22 +121,21 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
   def handle_motion(self, contours):
     logger.debug('motion detected')
     self.last_motion_time = self.frame.time
-    # draw_rectangles(self.frame.image, contours)
+    draw_rectangles(self.frame.image, contours)
     draw_contours(self.frame.image, contours)
     self.video_buffer.append(self.frame)
     cv2.imshow('MOTION_DETECTED', self.frame.image)
     cv2.waitKey(1)
 
-  def write_video(self):
+  def write_video(self, buf):
     writer = CV2VideoWriter(self.video_format,
                             self.fps,
                             None,
-                            self.video_buffer[0].time.isoformat(),
+                            buf[0].time.isoformat(),
                             None,
-                            self.video_buffer[0].width,
-                            self.video_buffer[0].height)
-    writer.write(self.video_buffer)
-    self.video_buffer = []
+                            buf[0].width,
+                            buf[0].height)
+    writer.write(buf)
     self.last_motion_time = None
     cv2.destroyWindow('MOTION_DETECTED')
     # makes destroyWindow work -- may
@@ -163,7 +170,10 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
       if contours:
         self.handle_motion(contours)
       elif self.motion_is_timed_out():
-        self.write_video()
+        buf = []
+        while self.video_buffer:
+          buf.append(self.video_buffer.pop(0))
+        self.write_video(buf)
       ### not currently in motion but still within timeout period:
       elif self.last_motion_time != None:
         self.video_buffer.append(self.frame)
@@ -206,7 +216,7 @@ class CV2BackgroundSubtractorMOG(MotionDetector):
       self._current.image = downsample_image(frame.image)
      
   def detect_motion(self):
-    fgmask = threshold_image(self.current.image)
+    fgmask = adaptive_threshold_image(self.current.image)
     fgmask = self.fgbg.apply(fgmask)
     if self.debug:
       cv2.imshow('BackgroundSubtractorMOG', fgmask)
