@@ -97,6 +97,7 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
     self.motion_detector = motion_detector
     self.image_queue = image_queue
     self.motion_timeout = datetime.timedelta(0, motion_timeout)
+    self.video_writer = video_writer
     self.video_buffer = []
     self.last_motion_time = None
     self.frame = None

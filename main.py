@@ -153,7 +153,7 @@ def main():
 
   try:
     logger.debug('starting motion_detector process')
-    md_process = CV2MotionDetectorProcess(motion_detector, image_queue, motion_timeout, fps)
+    md_process = CV2MotionDetectorProcess(motion_detector, image_queue, motion_timeout, video_writer)
     md_process.start()
   except Exception as e:
     logger.critical("Failed to instantiate motion_detector process: %s" % e)

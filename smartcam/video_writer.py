@@ -12,12 +12,13 @@ class CV2VideoWriter(VideoWriter):
 
   def __init__(self, fmt, fps, path=None, cloud_writer=None):
     self.fmt = fmt.upper()
+    self.fps = fps
     if path is not None:
       self.path = path
     else:
       self.path = os.path.join(os.path.expanduser('~'), 'Videos')
-    if cloud_writer:
-      self.cloud_writer = cloud_writer
+    # may still be None:
+    self.cloud_writer = cloud_writer
 
   def write(self, frames, file_name=None, ext='avi', is_color=True):
     width = frames[0].width
@@ -28,8 +29,8 @@ class CV2VideoWriter(VideoWriter):
     full_path = os.path.join(self.path, file_name)
     try:
       writer = cv2.VideoWriter(full_path,
-                               cv2.VideoWriter_fourcc(*fmt), 
-                               fps, 
+                               cv2.VideoWriter_fourcc(*self.fmt), 
+                               self.fps, 
                                (width, height), 
                                is_color)
     except Exception as e:
@@ -37,5 +38,5 @@ class CV2VideoWriter(VideoWriter):
       raise e
     logger.debug('Writing video to file system')
     [ writer.write(i.image) for i in frames ]
-    if self.use_s3:
-      self.s3_writer.write(full_path)
+    if self.cloud_writer:
+      self.cloud_writer.write(full_path)
