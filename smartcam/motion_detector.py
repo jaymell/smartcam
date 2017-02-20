@@ -1,4 +1,3 @@
-import abc
 import cv2
 import copy
 import datetime
@@ -6,7 +5,7 @@ import logging
 import multiprocessing
 import numpy as np
 import queue
-from video_writer import CV2VideoWriter
+from smartcam.abstract import MotionDetectorProcess, MotionDetector
 
 
 logger = logging.getLogger(__name__)
@@ -87,33 +86,17 @@ def write_text(frame, text):
   cv2.putText(frame.image, text, (int(w*.05),int(h*.9)), font, .75, (255,255,255), 2, cv2.LINE_AA)
 
 
-class MotionDetectorProcess(multiprocessing.Process):
-  ''' abstract class for handling motion detection thread loop '''
-
-  __metaclass__ = abc.ABCMeta
-
-  @abc.abstractmethod
-  def __init__(self, motion_detector, image_queue, motion_timeout, fps, video_format):
-    pass
-
-  @abc.abstractmethod
-  def get_frame(self):
-    pass
-
-  @abc.abstractmethod
-  def run(self):
-    pass
-
-
 class CV2MotionDetectorProcess(MotionDetectorProcess):
 
-  def __init__(self, motion_detector, image_queue, motion_timeout, fps, video_format):
+  def __init__(self, 
+               motion_detector, 
+               image_queue, 
+               motion_timeout, 
+               video_writer):
     multiprocessing.Process.__init__(self)
     self.motion_detector = motion_detector
     self.image_queue = image_queue
     self.motion_timeout = datetime.timedelta(0, motion_timeout)
-    self.fps = fps
-    self.video_format = video_format
     self.video_buffer = []
     self.last_motion_time = None
     self.frame = None
@@ -128,14 +111,7 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
     cv2.waitKey(1)
 
   def write_video(self, buf):
-    writer = CV2VideoWriter(self.video_format,
-                            self.fps,
-                            None,
-                            buf[0].time.isoformat(),
-                            None,
-                            buf[0].width,
-                            buf[0].height)
-    writer.write(buf)
+    self.video_writer.write(buf)
     self.last_motion_time = None
     cv2.destroyWindow('MOTION_DETECTED')
     # makes destroyWindow work -- may
@@ -177,19 +153,6 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
       ### not currently in motion but still within timeout period:
       elif self.last_motion_time != None:
         self.video_buffer.append(self.frame)
-
-
-class MotionDetector(multiprocessing.Process):
-
-  __metaclass__ = abc.ABCMeta
-
-  @abc.abstractmethod
-  def __init__(self, debug=False):
-    pass
-
-  @abc.abstractmethod
-  def detect_motion(self):
-    pass
 
 
 class CV2BackgroundSubtractorMOG(MotionDetector):

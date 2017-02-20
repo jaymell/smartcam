@@ -8,7 +8,7 @@ if __name__ == '__main__' :
  
     fmt = 'MP42'
     video = cv2.VideoCapture(get_device(use_default=False));
-    writer = cv2.VideoWriter('/tmp/out', cv2.VideoWriter_fourcc(*fmt), 14.0, (640,480), True)
+    writer = cv2.VideoWriter('/tmp/test', cv2.VideoWriter_fourcc(*fmt), 14.0, (640,480), True)
     # Number of frames to capture
     num_frames = 100;
  

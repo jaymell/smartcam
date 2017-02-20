@@ -1,20 +1,12 @@
-import abc
 import queue
 import multiprocessing
 import cv2
 import logging
+from smartcam.abstract import VideoProcessor
 
 
 logger = logging.getLogger(__name__)
 
-
-class VideoProcessor(object):
-
-  __metaclass__ = abc.ABCMeta
-
-  @abc.abstractmethod
-  def get_frame(self): 
-    pass
 
 class CV2VideoProcessor(VideoProcessor):
 

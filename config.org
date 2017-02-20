@@ -22,5 +22,4 @@ video_format=mp42
 destination=s3
 local_folder=</home/myUser/Videos>
 s3_bucket=<myBucketName>
-s3_folder=videos
 

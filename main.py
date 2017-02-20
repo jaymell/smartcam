@@ -9,13 +9,15 @@ import sys
 import multiprocessing
 import cv2
 import time
-from frame_reader import CV2FrameReader, run_frame_thread
-from queue_handler import QueueHandler
-from motion_detector import ( CV2MotionDetectorProcess, 
+import smartcam
+from smartcam.frame_reader import CV2FrameReader, run_frame_thread
+from smartcam.queue_handler import QueueHandler
+from smartcam.motion_detector import ( CV2MotionDetectorProcess, 
                               CV2FrameDiffMotionDetector, 
                               CV2BackgroundSubtractorMOG, 
                               CV2BackgroundSubtractorGMG )
-from video_processor import CV2VideoProcessor
+from smartcam.video_processor import CV2VideoProcessor
+from smartcam.video_writer import CV2VideoWriter
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -61,6 +63,7 @@ def show_video(video_processor, fps):
     cv2.imshow(t.strftime('%Y-%m-%d'), img)
     cv2.waitKey(1)
 
+
 def parse_config():
   config_file = "config"
   p = configparser.ConfigParser()
@@ -70,17 +73,26 @@ def parse_config():
   export['MOTION_TIMEOUT'] = float(os.environ.get('MOTION_TIMEOUT', p.get('video', 'motion_timeout')))
   export['VIDEO_FORMAT'] = os.environ.get('VIDEO_FORMAT', p.get('video', 'video_format'))
   export['FPS'] = float(os.environ.get('FPS', p.get('video', 'fps')))
+  export['DESTINATION'] = os.environ.get('DESTINATION', p.get('storage', 'destination')) 
+  export['LOCAL_FOLDER'] = os.environ.get('LOCAL_FOLDER', p.get('storage', 'local_folder'))
+  export['S3_BUCKET'] = os.environ.get('S3_BUCKET', p.get('storage', 's3_bucket'))
   return export
 
 
+def load_cloud_writer(config):
+  ''' load object for writing stuff to cloud storage --- 
+      will return None if not configured '''
+  if config['DESTINATION'] == 's3':
+    from smartcam.cloud.aws import S3Writer
+    return None
+
+
+def load_motion_detector(config):
+  pass
+
+
 def main():
-  """ process for initialization:
-      1) initialize video source and reader class
-      2) initialize VideoProcessor
-      3) initialize ImageProcessor
-      4) initialize QueueHandler with queues from obj's in 2 and 3
-      5) initalize FrameReader with queue from 4 
-  """
+  """ initialize all the things  """
 
   config = parse_config()
   motion_timeout = config['MOTION_TIMEOUT']
@@ -106,17 +118,34 @@ def main():
   
   try:
     logger.debug('starting frame_reader')
-    frame_thread = multiprocessing.Process(target=run_frame_thread, args=(frame_reader, queue_handler, fps))
+    frame_thread = multiprocessing.Process(target=run_frame_thread, 
+                                           args=(frame_reader, 
+                                                 queue_handler, 
+                                                 fps))
     frame_thread.start()
   except Exception as e:
     logger.critical("Failed to start frame_thread: %s" % e)
     return 1
 
   try:
+    logger.debug('initializing cloud_writer')
+    cloud_writer = load_cloud_writer(config)
+  except Exception as e:
+    logger.critical("Failed to instantiate cloud_writer: %s" % e)
+    return 1
+
+  try:
+    logger.debug('initializing video_writer')
+    video_writer = CV2VideoWriter(video_format, fps, cloud_writer)
+  except Exception as e:
+    logger.critical("Failed to instantiate video_writer: %s" % e)
+    return 1
+
+  try:
     logger.debug('initializing motion_detector')
-    motion_detector = CV2BackgroundSubtractorMOG(debug=True)
+    # motion_detector = CV2BackgroundSubtractorMOG(debug=True)
     # motion_detector = CV2BackgroundSubtractorGMG(debug=True)
-    # motion_detector = CV2FrameDiffMotionDetector(debug=True)
+    motion_detector = CV2FrameDiffMotionDetector(debug=True)
     motion_detector.start()
   except Exception as e:
     logger.critical("Failed to instantiate motion_detector: %s" % e)
@@ -124,7 +153,7 @@ def main():
 
   try:
     logger.debug('starting motion_detector process')
-    md_process = CV2MotionDetectorProcess(motion_detector, image_queue, motion_timeout, fps, video_format)
+    md_process = CV2MotionDetectorProcess(motion_detector, image_queue, motion_timeout, fps)
     md_process.start()
   except Exception as e:
     logger.critical("Failed to instantiate motion_detector process: %s" % e)

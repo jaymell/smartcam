@@ -1,16 +1,15 @@
-import abc
 import cv2
 import logging
 import datetime
 import queue
 import multiprocessing
 import time
-
+from smartcam.abstract import FrameReader
 
 logger = logging.getLogger(__name__)
 
 
-class Frame(object):
+class Frame:
   def __init__(self, image, width, height):
     self.image = image
     self.time = datetime.datetime.now()
@@ -32,16 +31,6 @@ class Frame(object):
   @time.setter
   def time(self, time):
     self._time = time
-
-
-class FrameReader:
-  """ abstract class for image reader """
-
-  __metaclass__ = abc.ABCMeta
-
-  @abc.abstractmethod
-  def get_frame(self): 
-    pass
 
 
 class CV2FrameReader(FrameReader):
