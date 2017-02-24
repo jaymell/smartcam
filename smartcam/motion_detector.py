@@ -5,6 +5,7 @@ import logging
 import multiprocessing
 import numpy as np
 import queue
+import threading
 from smartcam.abstract import MotionDetectorProcess, MotionDetector
 
 
@@ -111,13 +112,22 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
     cv2.imshow('MOTION_DETECTED', self.frame.image)
     cv2.waitKey(1)
 
-  def write_video(self, buf):
+  def write_video_update_db(self, buf):
+    logger.debug('writing video')
     self.video_writer.write(buf)
+    # TODO: Da-base
+
+  def handle_motion_timeout(self):
+    buf = []
     self.last_motion_time = None
     cv2.destroyWindow('MOTION_DETECTED')
     # makes destroyWindow work -- may
     # be a better way to do this:
     cv2.waitKey(1)
+    # copy and clear out self.video_buffer
+    while self.video_buffer:
+      buf.append(self.video_buffer.pop(0))
+    threading.Thread(target=self.write_video_update_db, args=(buf,)).start()
 
   def motion_is_timed_out(self):
     ''' return true/false -- has it been longer than self.motion_timeout
@@ -147,10 +157,7 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
       if contours:
         self.handle_motion(contours)
       elif self.motion_is_timed_out():
-        buf = []
-        while self.video_buffer:
-          buf.append(self.video_buffer.pop(0))
-        self.write_video(buf)
+        self.handle_motion_timeout()
       ### not currently in motion but still within timeout period:
       elif self.last_motion_time != None:
         self.video_buffer.append(self.frame)

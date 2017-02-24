@@ -38,5 +38,5 @@ class CV2VideoWriter(VideoWriter):
       raise e
     logger.debug('Writing video to file system')
     [ writer.write(i.image) for i in frames ]
-    if self.cloud_writer:
+    if self.cloud_writer is not None:
       self.cloud_writer.write(full_path)
