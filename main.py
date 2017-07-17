@@ -2,7 +2,7 @@
 
 import threading
 import configparser
-import os 
+import os
 import glob
 import logging
 import sys
@@ -12,9 +12,9 @@ import time
 import smartcam
 from smartcam.frame_reader import CV2FrameReader, run_frame_thread
 from smartcam.queue_handler import QueueHandler
-from smartcam.motion_detector import ( CV2MotionDetectorProcess, 
-                              CV2FrameDiffMotionDetector, 
-                              CV2BackgroundSubtractorMOG, 
+from smartcam.motion_detector import ( CV2MotionDetectorProcess,
+                              CV2FrameDiffMotionDetector,
+                              CV2BackgroundSubtractorMOG,
                               CV2BackgroundSubtractorGMG )
 from smartcam.video_processor import CV2VideoProcessor
 from smartcam.video_writer import CV2VideoWriter
@@ -41,7 +41,7 @@ def get_device(use_default=True, device_path=None):
 
 
 def get_video_source(config):
-  try: 
+  try:
     dev_num = int(config['VIDEO_SOURCE'])
     return dev_num
   except ValueError:
@@ -58,7 +58,7 @@ def show_video(video_processor, fps):
     if frame is None:
       time.sleep(.1)
       continue
-    img = frame.image 
+    img = frame.image
     t = frame.time
     cv2.imshow(t.strftime('%Y-%m-%d'), img)
     cv2.waitKey(1)
@@ -69,22 +69,29 @@ def parse_config():
   p = configparser.ConfigParser()
   p.read(config_file)
   export = {}
-  export['VIDEO_SOURCE'] = os.environ.get('VIDEO_SOURCE', p.get('video', 'source'))
-  export['MOTION_TIMEOUT'] = float(os.environ.get('MOTION_TIMEOUT', p.get('video', 'motion_timeout')))
-  export['VIDEO_FORMAT'] = os.environ.get('VIDEO_FORMAT', p.get('video', 'video_format'))
-  export['FPS'] = float(os.environ.get('FPS', p.get('video', 'fps')))
-  export['DESTINATION'] = os.environ.get('DESTINATION', p.get('storage', 'destination')) 
-  export['LOCAL_FOLDER'] = os.environ.get('LOCAL_FOLDER', p.get('storage', 'local_folder'))
-  export['S3_BUCKET'] = os.environ.get('S3_BUCKET', p.get('storage', 's3_bucket'))
+  export['VIDEO_SOURCE'] = os.environ.get('VIDEO_SOURCE',
+    p.get('video', 'source'))
+  export['MOTION_TIMEOUT'] = float(os.environ.get('MOTION_TIMEOUT',
+    p.get('video', 'motion_timeout')))
+  export['VIDEO_FORMAT'] = os.environ.get('VIDEO_FORMAT',
+    p.get('video', 'video_format'))
+  export['FPS'] = float(os.environ.get('FPS',
+    p.get('video', 'fps')))
+  export['DESTINATION'] = os.environ.get('DESTINATION',
+    p.get('storage', 'destination'))
+  export['LOCAL_FOLDER'] = os.environ.get('LOCAL_FOLDER',
+    p.get('storage', 'local_folder'))
+  export['S3_BUCKET'] = os.environ.get('S3_BUCKET',
+    p.get('storage', 's3_bucket'))
   return export
 
 
 def load_cloud_writer(config):
-  ''' load object for writing stuff to cloud storage --- 
+  ''' load object for writing stuff to cloud storage ---
       will return None if not configured '''
   if config['DESTINATION'] == 's3':
     from smartcam.cloud.aws import S3Writer
-    return None
+    return S3Writer()
 
 
 def load_motion_detector(config):
@@ -115,12 +122,12 @@ def main():
   except Exception as e:
     logger.critical("Failed to instantiate CV2FrameReader: %s" % e)
     return 1
-  
+
   try:
     logger.debug('starting frame_reader')
-    frame_thread = multiprocessing.Process(target=run_frame_thread, 
-                                           args=(frame_reader, 
-                                                 queue_handler, 
+    frame_thread = multiprocessing.Process(target=run_frame_thread,
+                                           args=(frame_reader,
+                                                 queue_handler,
                                                  fps))
     frame_thread.start()
   except Exception as e:
@@ -136,7 +143,8 @@ def main():
 
   try:
     logger.debug('initializing video_writer')
-    video_writer = CV2VideoWriter(video_format, fps, cloud_writer)
+    video_writer = CV2VideoWriter(video_format, fps, path=None,
+      cloud_writer=cloud_writer)
   except Exception as e:
     logger.critical("Failed to instantiate video_writer: %s" % e)
     return 1
@@ -159,7 +167,7 @@ def main():
     logger.critical("Failed to instantiate motion_detector process: %s" % e)
     return 1
 
-  try: 
+  try:
     video_processor = CV2VideoProcessor(video_queue)
   except Exception as e:
     logger.critical("Failed to instantiate CV2ImageProcessor: %s" % e)

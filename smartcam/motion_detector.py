@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def equalize_image(image):
   ''' currently using to improve contrast of low-light images --
-      see this page: 
+      see this page:
       docs.opencv.org/3.2.0/d5/daf/tutorial_py_histogram_equalization.html
   '''
 
@@ -47,8 +47,8 @@ def grayscale_image(image):
   return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
 def adaptive_threshold_image(image):
-  return cv2.adaptiveThreshold(image, 
-                               255, 
+  return cv2.adaptiveThreshold(image,
+                               255,
                                cv2.ADAPTIVE_THRESH_MEAN_C,
                                cv2.THRESH_BINARY,
                                11,
@@ -74,7 +74,8 @@ def blur_image(image):
 
 
 def find_contours(image, threshold=100):
-    (_, _contours, _) = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    (_, _contours, _) = cv2.findContours(image, cv2.RETR_TREE,
+      cv2.CHAIN_APPROX_SIMPLE)
     if not _contours:
       return None
     contours = [ i for i in _contours if cv2.contourArea(i) > threshold ]
@@ -84,15 +85,16 @@ def find_contours(image, threshold=100):
 def write_text(frame, text):
   (h, w) = frame.height, frame.width
   font = cv2.FONT_HERSHEY_SIMPLEX
-  cv2.putText(frame.image, text, (int(w*.05),int(h*.9)), font, .75, (255,255,255), 2, cv2.LINE_AA)
+  cv2.putText(frame.image, text, (int(w*.05),int(h*.9)), font, .75,
+    (255,255,255), 2, cv2.LINE_AA)
 
 
 class CV2MotionDetectorProcess(MotionDetectorProcess):
 
-  def __init__(self, 
-               motion_detector, 
-               image_queue, 
-               motion_timeout, 
+  def __init__(self,
+               motion_detector,
+               image_queue,
+               motion_timeout,
                video_writer):
     multiprocessing.Process.__init__(self)
     self.motion_detector = motion_detector
@@ -185,7 +187,7 @@ class CV2BackgroundSubtractorMOG(MotionDetector):
     with self.cur_lock:
       self._current = frame
       self._current.image = downsample_image(frame.image)
-     
+
   def detect_motion(self):
     fgmask = adaptive_threshold_image(self.current.image)
     fgmask = self.fgbg.apply(fgmask)
