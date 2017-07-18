@@ -83,6 +83,8 @@ def parse_config():
     p.get('storage', 'local_folder'))
   export['S3_BUCKET'] = os.environ.get('S3_BUCKET',
     p.get('storage', 's3_bucket'))
+  export['S3_REGION'] = os.environ.get('S3_REGION',
+    p.get('storage', 's3_region'))
   return export
 
 
@@ -91,7 +93,8 @@ def load_cloud_writer(config):
       will return None if not configured '''
   if config['DESTINATION'] == 's3':
     from smartcam.cloud.aws import S3Writer
-    return S3Writer()
+    return S3Writer(config['S3_REGION'],
+      config['S3_BUCKET'])
 
 
 def load_motion_detector(config):
