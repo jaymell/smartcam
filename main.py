@@ -17,7 +17,7 @@ from smartcam.motion_detector import ( CV2MotionDetectorProcess,
                               CV2BackgroundSubtractorMOG,
                               CV2BackgroundSubtractorGMG )
 from smartcam.video_processor import CV2VideoProcessor
-from smartcam.video_writer import CV2VideoWriter
+from smartcam.video_writer import CV2VideoWriter, FFMpegVideoWriter
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -146,7 +146,7 @@ def main():
 
   try:
     logger.debug('initializing video_writer')
-    video_writer = CV2VideoWriter(video_format, fps, path=None,
+    video_writer = FFMpegVideoWriter(video_format, fps, path=None,
       cloud_writer=cloud_writer)
   except Exception as e:
     logger.critical("Failed to instantiate video_writer: %s" % e)
