@@ -22,7 +22,7 @@ class Frame:
 
   @image.setter
   def image(self, image):
-    self._image = image 
+    self._image = image
 
   @property
   def time(self):
@@ -43,10 +43,10 @@ class CV2FrameReader(FrameReader):
       raise e
 
   def get_frame(self):
-    result, frame = self._cam.read()
+    result, img = self._cam.read()
     if result is True:
-      (h, w) = frame.shape[:2]
-      return Frame(frame, w, h)
+      (h, w) = img.shape[:2]
+      return Frame(img, w, h)
 
     logger.error('CV2FrameReader read frame error')
     return None
