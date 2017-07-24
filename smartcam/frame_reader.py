@@ -52,7 +52,7 @@ class CV2FrameReader(FrameReader):
     return None
 
 
-def run_frame_thread(frame_reader, queue_handler, fps):
+def run_frame_thread(frame_reader, queue, fps):
   logging.debug("starting frame_reader run loop")
   # dump initial frames, as it seems certain cameras
   # flub the first few for some reason:
@@ -67,7 +67,7 @@ def run_frame_thread(frame_reader, queue_handler, fps):
     except Exception as e:
       logger.error("Failed to instantiate Frame: %s" % e)
     try:
-      queue_handler.put(frame)
+      queue.put(frame)
     except Exception as e:
       print("Failed to put frame onto queue: %s" % e)
     time.sleep(1.0/fps)

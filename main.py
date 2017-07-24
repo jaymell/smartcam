@@ -11,13 +11,13 @@ import cv2
 import time
 import smartcam
 from smartcam.frame_reader import CV2FrameReader, run_frame_thread
-from smartcam.queue_handler import QueueHandler
+from smartcam.queue_tee import QueueTee
 from smartcam.motion_detector import ( CV2MotionDetectorProcess,
                               CV2FrameDiffMotionDetector,
                               CV2BackgroundSubtractorMOG,
                               CV2BackgroundSubtractorGMG )
 from smartcam.video_processor import CV2VideoProcessor
-from smartcam.video_writer import CV2VideoWriter, FFMpegVideoWriter
+from smartcam.video_writer import FfmpegVideoWriter
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -109,15 +109,17 @@ def main():
   fps = config['FPS']
   video_format = config['VIDEO_FORMAT']
   video_source = get_video_source(config)
+  frame_queue = multiprocessing.Queue()
   video_queue = multiprocessing.Queue()
   image_queue = multiprocessing.Queue()
+  motion_queue = multiprocessing.Queue()
 
   try:
-    logger.debug('starting queue_handler')
-    queue_handler = QueueHandler(video_queue, image_queue, fps)
-    queue_handler.start()
+    frame_tee = QueueTee(in_queue=frame_queue,
+      out_queues=[video_queue, image_queue])
+    frame_tee.start()
   except Exception as e:
-    logger.critical("Failed to instantiate QueueHandler: %s " % e)
+    logger.critical("Failed to instantiate frame_tee: %s " % e)
     return 1
 
   try:
@@ -130,7 +132,7 @@ def main():
     logger.debug('starting frame_reader')
     frame_thread = multiprocessing.Process(target=run_frame_thread,
                                            args=(frame_reader,
-                                                 queue_handler,
+                                                 frame_queue,
                                                  fps))
     frame_thread.start()
   except Exception as e:
@@ -146,8 +148,9 @@ def main():
 
   try:
     logger.debug('initializing video_writer')
-    video_writer = FFMpegVideoWriter(video_format, fps, path=None,
-      cloud_writer=cloud_writer)
+    video_writer = FfmpegVideoWriter(motion_queue, video_format,
+      fps, path=None, cloud_writer=cloud_writer)
+    video_writer.start()
   except Exception as e:
     logger.critical("Failed to instantiate video_writer: %s" % e)
     return 1
@@ -157,14 +160,14 @@ def main():
     # motion_detector = CV2BackgroundSubtractorMOG(debug=True)
     # motion_detector = CV2BackgroundSubtractorGMG(debug=True)
     motion_detector = CV2FrameDiffMotionDetector(debug=True)
-    motion_detector.start()
   except Exception as e:
     logger.critical("Failed to instantiate motion_detector: %s" % e)
     return 1
 
   try:
     logger.debug('starting motion_detector process')
-    md_process = CV2MotionDetectorProcess(motion_detector, image_queue, motion_timeout, video_writer)
+    md_process = CV2MotionDetectorProcess(motion_detector,
+      image_queue, motion_queue, motion_timeout)
     md_process.start()
   except Exception as e:
     logger.critical("Failed to instantiate motion_detector process: %s" % e)
@@ -177,8 +180,12 @@ def main():
     return 1
 
   show_video(video_processor, fps)
-  frame_thread.join(); md_process.join(); queue_handler.join()
-  sys.exit(0)
+  frame_thread.join()
+  md_process.join()
+  frame_tee.join()
+  video_writer.join()
+
+  return 0
 
 if __name__ == '__main__':
   main()

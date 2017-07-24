@@ -94,14 +94,13 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
   def __init__(self,
                motion_detector,
                image_queue,
-               motion_timeout,
-               video_writer):
+               motion_queue,
+               motion_timeout):
     multiprocessing.Process.__init__(self)
     self.motion_detector = motion_detector
     self.image_queue = image_queue
     self.motion_timeout = datetime.timedelta(0, motion_timeout)
-    self.video_writer = video_writer
-    self.video_buffer = []
+    self.motion_queue = motion_queue
     self.last_motion_time = None
     self.frame = None
 
@@ -110,14 +109,9 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
     self.last_motion_time = self.frame.time
     draw_rectangles(self.frame.image, contours)
     draw_contours(self.frame.image, contours)
-    self.video_buffer.append(self.frame)
+    self.motion_queue.put(self.frame)
     cv2.imshow('MOTION_DETECTED', self.frame.image)
     cv2.waitKey(1)
-
-  def write_video_update_db(self, buf):
-    logger.debug('writing video')
-    self.video_writer.write(buf)
-    # TODO: Da-base
 
   def handle_motion_timeout(self):
     buf = []
@@ -126,10 +120,7 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
     # makes destroyWindow work -- may
     # be a better way to do this:
     cv2.waitKey(1)
-    # copy and clear out self.video_buffer
-    while self.video_buffer:
-      buf.append(self.video_buffer.pop(0))
-    threading.Thread(target=self.write_video_update_db, args=(buf,)).start()
+    self.motion_queue.put(None)
 
   def motion_is_timed_out(self):
     ''' return true/false -- has it been longer than self.motion_timeout
@@ -162,7 +153,7 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
         self.handle_motion_timeout()
       ### not currently in motion but still within timeout period:
       elif self.last_motion_time != None:
-        self.video_buffer.append(self.frame)
+        self.motion_queue.put(self.frame)
 
 
 class CV2BackgroundSubtractorMOG(MotionDetector):
@@ -170,7 +161,6 @@ class CV2BackgroundSubtractorMOG(MotionDetector):
   '''
 
   def __init__(self, debug=False):
-    multiprocessing.Process.__init__(self)
     self.cur_lock = multiprocessing.Lock()
     self._current = None
     self.daemon = True
@@ -203,7 +193,6 @@ class CV2BackgroundSubtractorGMG(MotionDetector):
   '''
 
   def __init__(self, debug=False):
-    multiprocessing.Process.__init__(self)
     self.cur_lock = multiprocessing.Lock()
     self._current = None
     self.daemon = True
@@ -238,7 +227,6 @@ class CV2FrameDiffMotionDetector(MotionDetector):
       frame
   '''
   def __init__(self, debug=False):
-    multiprocessing.Process.__init__(self)
     self.bg_lock = multiprocessing.Lock()
     self.cur_lock = multiprocessing.Lock()
     self._current = None
