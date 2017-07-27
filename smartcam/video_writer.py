@@ -65,15 +65,15 @@ class FfmpegVideoWriter(VideoWriter):
     logger.debug("called get_writer")
     file_name = file_prefix + '.' + ext
     full_path = os.path.join(self.path, file_name)
-    p = subprocess.Popen(['ffmpeg', '-y', '-f', 'image2pipe',
+    p = subprocess.Popen(['ffmpeg', '-y', '-f', 'image2pipe', '-r', str(self.fps),
       '-s', '%sx%s' % (width, height), '-i', '-',
-      '-r', str(self.fps), '-vcodec', 'libx264', '-f', 'mp4', full_path ],
+      '-crf', "0", '-vcodec', 'libx264', '-f', 'mp4', full_path ],
        stdin=subprocess.PIPE)
 
     def writer(frame):
       logger.debug("writing frame")
       if frame is None:
-        logger.debug("closing write process")
+        logger.debug("received null frame")
         p.stdin.close()
         p.wait()
         return
@@ -97,6 +97,7 @@ class FfmpegVideoWriter(VideoWriter):
           writer = None
         continue
       if writer is None:
+        logger.debug('instantiating writer')
         writer = self.get_writer(frame.width, frame.height,
           frame.time.isoformat(), ext='mp4')
       writer(frame)

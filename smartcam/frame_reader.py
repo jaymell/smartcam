@@ -62,7 +62,6 @@ def run_frame_thread(frame_reader, queue, fps):
     try:
       frame = frame_reader.get_frame()
     except queue.Empty:
-      # SHOULD I PAUSE HERE?
       continue
     except Exception as e:
       logger.error("Failed to instantiate Frame: %s" % e)
