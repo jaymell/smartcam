@@ -73,8 +73,6 @@ def parse_config():
     p.get('video', 'source'))
   export['MOTION_TIMEOUT'] = float(os.environ.get('MOTION_TIMEOUT',
     p.get('video', 'motion_timeout')))
-  export['VIDEO_FORMAT'] = os.environ.get('VIDEO_FORMAT',
-    p.get('video', 'video_format'))
   export['FPS'] = float(os.environ.get('FPS',
     p.get('video', 'fps')))
   export['DESTINATION'] = os.environ.get('DESTINATION',
@@ -100,19 +98,18 @@ def load_cloud_writer(config):
 def load_motion_detector(config):
   pass
 
-
 def main():
   """ initialize all the things  """
 
   config = parse_config()
   motion_timeout = config['MOTION_TIMEOUT']
   fps = config['FPS']
-  video_format = config['VIDEO_FORMAT']
   video_source = get_video_source(config)
   frame_queue = multiprocessing.Queue()
   video_queue = multiprocessing.Queue()
   image_queue = multiprocessing.Queue()
   motion_queue = multiprocessing.Queue()
+  motion_video_queue = multiprocessing.Queue()
 
   try:
     frame_tee = QueueTee(in_queue=frame_queue,
@@ -120,6 +117,14 @@ def main():
     frame_tee.start()
   except Exception as e:
     logger.critical("Failed to instantiate frame_tee: %s " % e)
+    return 1
+
+  try:
+    motion_tee = QueueTee(in_queue=motion_queue,
+      out_queues=[motion_video_queue])
+    motion_tee.start()
+  except Exception as e:
+    logger.critical("Failed to instantiate motion_tee: %s " % e)
     return 1
 
   try:
@@ -148,8 +153,11 @@ def main():
 
   try:
     logger.debug('initializing video_writer')
-    video_writer = FfmpegVideoWriter(motion_queue, video_format,
-      fps, path=None, cloud_writer=cloud_writer)
+    frame_converter = lambda x: cv2.cvtColor(x,
+        cv2.COLOR_RGB2BGR)
+    video_writer = FfmpegVideoWriter(motion_video_queue,
+      fps, frame_converter=frame_converter, path=None,
+      cloud_writer=cloud_writer)
     video_writer.start()
   except Exception as e:
     logger.critical("Failed to instantiate video_writer: %s" % e)
@@ -157,6 +165,7 @@ def main():
 
   try:
     logger.debug('initializing motion_detector')
+    # FIXME: make this configurable:
     # motion_detector = CV2BackgroundSubtractorMOG(debug=True)
     # motion_detector = CV2BackgroundSubtractorGMG(debug=True)
     motion_detector = CV2FrameDiffMotionDetector(debug=True)

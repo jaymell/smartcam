@@ -54,7 +54,9 @@ class VideoWriter(multiprocessing.Process, metaclass=abc.ABCMeta):
   """ abstract class for writing videos """
 
   @abc.abstractmethod
-  def __init__(self, queue, fmt, fps, path=None, cloud_writer=None):
+  def __init__(self, queue, fps, frame_converter=None, path=None, cloud_writer=None):
+    ''' frame_converter is optional function that can be passed in if conversion is needed
+        before writing image to video -- e.g., BGR to RGB '''
     pass
 
   @abc.abstractmethod

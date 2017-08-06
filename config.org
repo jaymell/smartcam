@@ -1,23 +1,18 @@
 [video]
-
-# 'device,non-default' to help avoid built-in 
-# webcams from being read; 
+# 'device,non-default' to help avoid built-in
+# webcams from being read;
 # just 'device' otherwise:
 source=device,non-default
 #source=device
 
-# time in seconds to continue writing 
+# time in seconds to continue writing
 # video after last motion detected
 motion_timeout=5
 
 # sets interval at which main loop runs:
 fps=14
 
-#video_format=mjpg
-video_format=mp42
-
 [storage]
-
 # local or s3
 destination=s3
 local_folder=</home/myUser/Videos>
