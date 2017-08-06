@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class Frame:
   def __init__(self, image, width, height):
     self.image = image
-    self.time = datetime.datetime.now()
+    self.time = datetime.datetime.utcnow()
     self.width = width
     self.height = height
 
