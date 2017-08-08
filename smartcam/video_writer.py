@@ -64,9 +64,10 @@ class FfmpegVideoWriter(VideoWriter):
 
   def get_writer(self, width, height, file_prefix, ext='avi', is_color=True):
     logger.debug("called get_writer")
-    file_name = file_prefix + '.' + ext
+    file_name = "%s.%s" % (file_prefix, ext)
     full_path = os.path.join(self.path, file_name)
-    p = subprocess.Popen(['ffmpeg', '-y', '-f', 'image2pipe', '-r', str(self.fps),
+    p = subprocess.Popen([
+      'ffmpeg', '-y', '-f', 'image2pipe', '-r', str(self.fps),
       '-s', '%sx%s' % (width, height), '-i', '-',
       '-crf', "0", '-vcodec', 'libx264', '-f', 'mp4', full_path ],
        stdin=subprocess.PIPE)
@@ -78,7 +79,7 @@ class FfmpegVideoWriter(VideoWriter):
         p.stdin.close()
         p.wait()
         if self.cloud_writer is not None:
-          self.cloud_writer.write(full_path)
+          self.cloud_writer.write_file(full_path, "video/%s" % file_name)
         return
       if self.frame_converter:
         Image.fromarray(self.frame_converter(frame.image)).save(p.stdin, 'JPEG')
@@ -104,4 +105,3 @@ class FfmpegVideoWriter(VideoWriter):
         writer = self.get_writer(frame.width, frame.height,
           frame.time.isoformat(), ext='mp4')
       writer(frame)
-

@@ -1,6 +1,6 @@
 import abc
 import multiprocessing
-
+import threading
 
 class MotionDetectorProcess(multiprocessing.Process, metaclass=abc.ABCMeta):
   ''' abstract class for handling motion detection thread loop '''
@@ -64,10 +64,25 @@ class VideoWriter(multiprocessing.Process, metaclass=abc.ABCMeta):
     pass
 
 
-class CloudWriter(metaclass=abc.ABCMeta):
-  """ abstract interface for video writers """
+class ImageWriter(threading.Thread, metaclass=abc.ABCMeta):
+  """ interface for image writers; intended to run
+      in separate thread in main process """
 
   @abc.abstractmethod
-  def write(self):
+  def write_image(self, img, name):
+    """ write to path on filesystem """
     pass
+
+
+class CloudWriter(metaclass=abc.ABCMeta):
+  """ interface for video writers """
+
+  @abc.abstractmethod
+  def write_file(self, src, dest):
+    pass
+
+  def write_fileobj(self, src, dest):
+    """ write to file-like object """
+    pass
+
 

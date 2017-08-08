@@ -18,6 +18,7 @@ from smartcam.motion_detector import ( CV2MotionDetectorProcess,
                               CV2BackgroundSubtractorGMG )
 from smartcam.video_processor import CV2VideoProcessor
 from smartcam.video_writer import FfmpegVideoWriter
+from smartcam.image_writer import PILImageWriter
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -83,6 +84,7 @@ def parse_config():
     p.get('storage', 's3_bucket'))
   export['S3_REGION'] = os.environ.get('S3_REGION',
     p.get('storage', 's3_region'))
+
   return export
 
 
@@ -98,6 +100,7 @@ def load_cloud_writer(config):
 def load_motion_detector(config):
   pass
 
+
 def main():
   """ initialize all the things  """
 
@@ -110,6 +113,7 @@ def main():
   image_queue = multiprocessing.Queue()
   motion_queue = multiprocessing.Queue()
   motion_video_queue = multiprocessing.Queue()
+  motion_image_queue = multiprocessing.Queue()
 
   try:
     frame_tee = QueueTee(in_queue=frame_queue,
@@ -121,7 +125,7 @@ def main():
 
   try:
     motion_tee = QueueTee(in_queue=motion_queue,
-      out_queues=[motion_video_queue])
+      out_queues=[motion_video_queue, motion_image_queue])
     motion_tee.start()
   except Exception as e:
     logger.critical("Failed to instantiate motion_tee: %s " % e)
@@ -164,6 +168,14 @@ def main():
     return 1
 
   try:
+    logger.debug('initializing image_writer')
+    image_writer = PILImageWriter(motion_image_queue, cloud_writer, frame_converter)
+    image_writer.start()
+  except Exception as e:
+    logger.critical("Failed to instantiate image_writer: %s" % e)
+    return 1
+
+  try:
     logger.debug('initializing motion_detector')
     # FIXME: make this configurable:
     # motion_detector = CV2BackgroundSubtractorMOG(debug=True)
@@ -192,8 +204,9 @@ def main():
   frame_thread.join()
   md_process.join()
   frame_tee.join()
+  motion_tee.join()
   video_writer.join()
-
+  image_writer.join()
   return 0
 
 if __name__ == '__main__':
