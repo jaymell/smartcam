@@ -243,7 +243,7 @@ class CV2FrameDiffMotionDetector(MotionDetector):
       cv2.waitKey(1)
     thresh = threshold_image(delta)
     thresh = cv2.dilate(thresh, None, iterations=2)
-    contours = find_contours(thresh)
+    contours = find_contours(thresh, threshold=1000)
     return contours
 
   def get_delta(self):

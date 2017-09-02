@@ -10,6 +10,7 @@ import multiprocessing
 import cv2
 import time
 import smartcam
+from smartcam.cloud.aws import S3Writer, KinesisWriter
 from smartcam.frame_reader import CV2FrameReader, run_frame_thread
 from smartcam.queue_tee import QueueTee
 from smartcam.motion_detector import ( CV2MotionDetectorProcess,
@@ -76,26 +77,47 @@ def parse_config():
     p.get('video', 'motion_timeout')))
   export['FPS'] = float(os.environ.get('FPS',
     p.get('video', 'fps')))
-  export['DESTINATION'] = os.environ.get('DESTINATION',
-    p.get('storage', 'destination'))
-  export['LOCAL_FOLDER'] = os.environ.get('LOCAL_FOLDER',
-    p.get('storage', 'local_folder'))
+  export['VIDEO_DESTINATION'] = os.environ.get('VIDEO_DESTINATION',
+    p.get('storage', 'video_destination'))
+  export['IMAGE_DESTINATION'] = os.environ.get('IMAGE_DESTINATION',
+    p.get('storage', 'image_destination'))
+  export['LOCAL_VIDEO_FOLDER'] = os.environ.get('LOCAL_VIDEO_FOLDER',
+    p.get('storage', 'local_video_folder'))
+  export['LOCAL_IMAGE_FOLDER'] = os.environ.get('LOCAL_IMAGE_FOLDER',
+    p.get('storage', 'local_image_folder'))
   export['S3_BUCKET'] = os.environ.get('S3_BUCKET',
     p.get('storage', 's3_bucket'))
-  export['S3_REGION'] = os.environ.get('S3_REGION',
-    p.get('storage', 's3_region'))
+  export['AWS_REGION'] = os.environ.get('AWS_REGION',
+    p.get('storage', 'aws_region'))
+  export['KINESIS_STREAM'] = os.environ.get('KINESIS_STREAM',
+    p.get('storage', 'kinesis_stream'))
 
   return export
 
-
-def load_cloud_writer(config):
+def load_cloud_video_writer(config):
   ''' load object for writing stuff to cloud storage ---
       will return None if not configured '''
-  if config['DESTINATION'] == 's3':
-    from smartcam.cloud.aws import S3Writer
-    return S3Writer(config['S3_REGION'],
+  dest = config['VIDEO_DESTINATION']
+  if dest == 'local':
+    return None
+  if dest == 's3':
+    return S3Writer(config['AWS_REGION'],
       config['S3_BUCKET'])
+  raise ValueError
 
+def load_cloud_image_writer(config):
+  ''' load object for writing stuff to cloud storage ---
+      will return None if not configured '''
+  dest = config['IMAGE_DESTINATION']
+  if dest == 'local':
+    return None
+  if dest == 's3':
+    return S3Writer(config['AWS_REGION'],
+      config['S3_BUCKET'])
+  if dest == 'kinesis':
+    return KinesisWriter(config['AWS_REGION'],
+      config['KINESIS_STREAM'])
+  raise ValueError
 
 def load_motion_detector(config):
   pass
@@ -125,7 +147,7 @@ def main():
 
   try:
     motion_tee = QueueTee(in_queue=motion_queue,
-      out_queues=[motion_video_queue, motion_image_queue])
+     out_queues=[motion_video_queue, motion_image_queue])
     motion_tee.start()
   except Exception as e:
     logger.critical("Failed to instantiate motion_tee: %s " % e)
@@ -149,10 +171,17 @@ def main():
     return 1
 
   try:
-    logger.debug('initializing cloud_writer')
-    cloud_writer = load_cloud_writer(config)
+    logger.debug('initializing cloud_video_writer')
+    cloud_video_writer = load_cloud_video_writer(config)
   except Exception as e:
-    logger.critical("Failed to instantiate cloud_writer: %s" % e)
+    logger.critical("Failed to instantiate cloud_video_writer: %s" % e)
+    return 1
+
+  try:
+    logger.debug('initializing cloud_image_writer')
+    cloud_image_writer = load_cloud_image_writer(config)
+  except Exception as e:
+    logger.critical("Failed to instantiate cloud_image_writer: %s" % e)
     return 1
 
   try:
@@ -161,7 +190,7 @@ def main():
         cv2.COLOR_RGB2BGR)
     video_writer = FfmpegVideoWriter(motion_video_queue,
       fps, frame_converter=frame_converter, path=None,
-      cloud_writer=cloud_writer)
+      cloud_writer=cloud_video_writer)
     video_writer.start()
   except Exception as e:
     logger.critical("Failed to instantiate video_writer: %s" % e)
@@ -169,7 +198,7 @@ def main():
 
   try:
     logger.debug('initializing image_writer')
-    image_writer = PILImageWriter(motion_image_queue, cloud_writer, frame_converter)
+    image_writer = PILImageWriter(motion_image_queue, cloud_image_writer, frame_converter)
     image_writer.start()
   except Exception as e:
     logger.critical("Failed to instantiate image_writer: %s" % e)

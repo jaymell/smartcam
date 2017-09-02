@@ -24,7 +24,9 @@ class PILImageWriter(ImageWriter):
     else:
       Image.fromarray(img).save(buf, self.IMAGE_TYPE)
     buf.seek(0)
-    self.cloud_writer.write_fileobj(buf, name)
+    if self.cloud_writer:
+      logger.debug('writing image to cloud_writer')
+      self.cloud_writer.write_fileobj(buf, name)
 
   def run(self):
     logger.debug("starting PILImagewriter thread")
@@ -35,5 +37,4 @@ class PILImageWriter(ImageWriter):
         continue
       if frame is None:
         continue
-      logger.debug("writing image to s3: %s" % frame.time )
       self.write_image(frame.image, "img/%s" % frame.time)
