@@ -19,7 +19,7 @@ from smartcam.motion_detector import ( CV2MotionDetectorProcess,
                               CV2BackgroundSubtractorGMG )
 from smartcam.video_processor import CV2VideoProcessor
 from smartcam.video_writer import FfmpegVideoWriter
-from smartcam.frame_writer import FramePickler
+from smartcam.frame_writer import FrameWriter
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -186,10 +186,8 @@ def main():
 
   try:
     logger.debug('initializing video_writer')
-    frame_converter = lambda x: cv2.cvtColor(x,
-        cv2.COLOR_RGB2BGR)
     video_writer = FfmpegVideoWriter(motion_video_queue,
-      fps, frame_converter=frame_converter, path=None,
+      fps, path=None,
       cloud_writer=cloud_video_writer)
     video_writer.start()
   except Exception as e:
@@ -198,7 +196,7 @@ def main():
 
   try:
     logger.debug('initializing frame_writer')
-    frame_writer = FramePickler(motion_image_queue, cloud_frame_writer, frame_converter)
+    frame_writer = FrameWriter(motion_image_queue, cloud_frame_writer)
     frame_writer.start()
   except Exception as e:
     logger.critical("Failed to instantiate frame_writer: %s" % e)

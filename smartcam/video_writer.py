@@ -49,12 +49,11 @@ logger = logging.getLogger(__name__)
 class FfmpegVideoWriter(VideoWriter):
   """ opencv2 video writer """
 
-  def __init__(self, queue, fps, frame_converter=None, path=None,
+  def __init__(self, queue, fps, path=None,
     cloud_writer=None):
     multiprocessing.Process.__init__(self)
     self.queue = queue
     self.fps = fps
-    self.frame_converter = frame_converter
     if path is not None:
       self.path = path
     else:
@@ -81,10 +80,9 @@ class FfmpegVideoWriter(VideoWriter):
         if self.cloud_writer is not None:
           self.cloud_writer.write_file(full_path, "video/%s" % file_name)
         return
-      if self.frame_converter:
-        Image.fromarray(self.frame_converter(frame.image)).save(p.stdin, 'JPEG')
-      else:
-        Image.fromarray(frame.image).save(p.stdin, 'JPEG')
+      buf = frame.encode()
+      buf.seek(0)
+      p.stdin.write(buf.read())
 
     return writer
 

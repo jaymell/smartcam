@@ -4,7 +4,12 @@ import datetime
 import queue
 import multiprocessing
 import time
+import json
+import base64
 from smartcam.abstract import FrameReader
+import io
+from PIL import Image
+import cv2
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +20,7 @@ class Frame:
     self.time = datetime.datetime.utcnow()
     self.width = width
     self.height = height
+    self.image_type = 'JPEG'
 
   @property
   def image(self):
@@ -31,6 +37,28 @@ class Frame:
   @time.setter
   def time(self, time):
     self._time = time
+
+  def frame_converter(self, x):
+    return cv2.cvtColor(x, cv2.COLOR_RGB2BGR)
+
+  def encode(self):
+    buf = io.BytesIO()
+    if self.frame_converter:
+      Image.fromarray(self.frame_converter(self.image)).save(buf, self.image_type)
+    else:
+      Image.fromarray(self.image).save(buf, self.image_type)
+    return buf
+
+  def encode_str(self):
+    ''' convert encoded buffer to byte string '''
+    return self.encode().getvalue()
+
+  def serialize(self):
+    return json.dumps({ 'time': self.time.__str__(),
+      'width': self.width,
+      'height': self.height,
+      'image': base64.b64encode(self.encode_str()).decode('utf-8')
+    })
 
 
 class CV2FrameReader(FrameReader):

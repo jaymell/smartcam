@@ -54,26 +54,11 @@ class VideoWriter(multiprocessing.Process, metaclass=abc.ABCMeta):
   """ abstract class for writing videos """
 
   @abc.abstractmethod
-  def __init__(self, queue, fps, frame_converter=None, path=None, cloud_writer=None):
-    ''' frame_converter is optional function that can be passed in if conversion is needed
-        before writing image to video -- e.g., BGR to RGB '''
+  def __init__(self, queue, fps, path=None, cloud_writer=None):
     pass
 
   @abc.abstractmethod
   def run(self):
-    pass
-
-
-class FrameWriter(threading.Thread, metaclass=abc.ABCMeta):
-  """ interface for frame writers; intended to run
-      in separate thread in main process """
-
-  @abc.abstractmethod
-  def serialize(self, frame):
-    pass
-
-  @abc.abstractmethod
-  def write_frame(self, frame):
     pass
 
 
@@ -88,4 +73,6 @@ class CloudWriter(metaclass=abc.ABCMeta):
     """ write to file-like object """
     pass
 
-
+  def write_str(self, src, dest):
+    """ write to file-like object """
+    pass

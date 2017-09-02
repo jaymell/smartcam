@@ -42,9 +42,19 @@ class KinesisWriter(CloudWriter):
 
   def write_fileobj(self, fileobj, dest):
     """ dest is not used """
-    pass
-    # response = self.client.put_record(
-    #     StreamName=self.stream,
-    #     Data=fileobj.read(),
-    #     PartitionKey=self.get_partition_key()
-    # )
+    # pass
+    response = self.client.put_record(
+        StreamName=self.stream,
+        Data=fileobj.read(),
+        PartitionKey=self.get_partition_key()
+    )
+
+  def write_str(self, src_str, dest):
+    """ dest is not used """
+    # pass
+    response = self.client.put_record(
+        StreamName=self.stream,
+        Data=src_str,
+        PartitionKey=self.get_partition_key()
+    )
+
