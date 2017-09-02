@@ -64,13 +64,16 @@ class VideoWriter(multiprocessing.Process, metaclass=abc.ABCMeta):
     pass
 
 
-class ImageWriter(threading.Thread, metaclass=abc.ABCMeta):
-  """ interface for image writers; intended to run
+class FrameWriter(threading.Thread, metaclass=abc.ABCMeta):
+  """ interface for frame writers; intended to run
       in separate thread in main process """
 
   @abc.abstractmethod
-  def write_image(self, img, name):
-    """ write to path on filesystem """
+  def serialize(self, frame):
+    pass
+
+  @abc.abstractmethod
+  def write_frame(self, frame):
     pass
 
 

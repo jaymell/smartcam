@@ -19,7 +19,7 @@ from smartcam.motion_detector import ( CV2MotionDetectorProcess,
                               CV2BackgroundSubtractorGMG )
 from smartcam.video_processor import CV2VideoProcessor
 from smartcam.video_writer import FfmpegVideoWriter
-from smartcam.image_writer import PILImageWriter
+from smartcam.frame_writer import FramePickler
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -105,7 +105,7 @@ def load_cloud_video_writer(config):
       config['S3_BUCKET'])
   raise ValueError
 
-def load_cloud_image_writer(config):
+def load_cloud_frame_writer(config):
   ''' load object for writing stuff to cloud storage ---
       will return None if not configured '''
   dest = config['IMAGE_DESTINATION']
@@ -178,10 +178,10 @@ def main():
     return 1
 
   try:
-    logger.debug('initializing cloud_image_writer')
-    cloud_image_writer = load_cloud_image_writer(config)
+    logger.debug('initializing cloud_frame_writer')
+    cloud_frame_writer = load_cloud_frame_writer(config)
   except Exception as e:
-    logger.critical("Failed to instantiate cloud_image_writer: %s" % e)
+    logger.critical("Failed to instantiate cloud_frame_writer: %s" % e)
     return 1
 
   try:
@@ -197,11 +197,11 @@ def main():
     return 1
 
   try:
-    logger.debug('initializing image_writer')
-    image_writer = PILImageWriter(motion_image_queue, cloud_image_writer, frame_converter)
-    image_writer.start()
+    logger.debug('initializing frame_writer')
+    frame_writer = FramePickler(motion_image_queue, cloud_frame_writer, frame_converter)
+    frame_writer.start()
   except Exception as e:
-    logger.critical("Failed to instantiate image_writer: %s" % e)
+    logger.critical("Failed to instantiate frame_writer: %s" % e)
     return 1
 
   try:
@@ -235,7 +235,7 @@ def main():
   frame_tee.join()
   motion_tee.join()
   video_writer.join()
-  image_writer.join()
+  frame_writer.join()
   return 0
 
 if __name__ == '__main__':
