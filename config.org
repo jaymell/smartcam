@@ -12,11 +12,20 @@ motion_timeout=5
 # sets interval at which main loop runs:
 fps=14
 
+# unique identifier for camera
+camera_id = 1
+
 [storage]
 # local or s3
-destination=s3
-local_folder=</home/myUser/Videos>
+video_destination=s3
+image_destination=kinesis
+kinesis_stream=smartcam
+local_video_folder=</home/myUser/Videos>
+local_image_folder=</home/myUser/Pictures>
 s3_bucket=<myBucketName>
 s3_key=
 s3_secret=
 
+aws_region=
+aws_key=
+aws_secret=

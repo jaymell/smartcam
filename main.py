@@ -91,7 +91,8 @@ def parse_config():
     p.get('storage', 'aws_region'))
   export['KINESIS_STREAM'] = os.environ.get('KINESIS_STREAM',
     p.get('storage', 'kinesis_stream'))
-
+  export['CAMERA_ID'] = os.environ.get('CAMERA_ID',
+    p.get('video', 'camera_id'))
   return export
 
 def load_cloud_video_writer(config):
@@ -128,6 +129,7 @@ def main():
 
   config = parse_config()
   motion_timeout = config['MOTION_TIMEOUT']
+  camera_id = config['CAMERA_ID']
   fps = config['FPS']
   video_source = get_video_source(config)
   frame_queue = multiprocessing.Queue()
@@ -154,7 +156,7 @@ def main():
     return 1
 
   try:
-    frame_reader = CV2FrameReader(video_source)
+    frame_reader = CV2FrameReader(camera_id, video_source)
   except Exception as e:
     logger.critical("Failed to instantiate CV2FrameReader: %s" % e)
     return 1

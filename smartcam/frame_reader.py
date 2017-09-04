@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 class Frame:
-  def __init__(self, image, width, height):
+  def __init__(self, camera_id, image, width, height):
+    self.id = camera_id
     self.image = image
     self.time = datetime.datetime.utcnow()
     self.width = width
@@ -54,7 +55,9 @@ class Frame:
     return self.encode().getvalue()
 
   def serialize(self):
-    return json.dumps({ 'time': self.time.__str__(),
+    return json.dumps({
+      'id': self.id,
+      'time': self.time.__str__(),
       'width': self.width,
       'height': self.height,
       'image': base64.b64encode(self.encode_str()).decode('utf-8')
@@ -63,7 +66,8 @@ class Frame:
 
 class CV2FrameReader(FrameReader):
 
-  def __init__(self, video_source):
+  def __init__(self, camera_id, video_source):
+    self.id = camera_id
     try:
       self._cam = cv2.VideoCapture(video_source)
     except Exception as e:
@@ -74,7 +78,7 @@ class CV2FrameReader(FrameReader):
     result, img = self._cam.read()
     if result is True:
       (h, w) = img.shape[:2]
-      return Frame(img, w, h)
+      return Frame(self.id, img, w, h)
 
     logger.error('CV2FrameReader read frame error')
     return None
