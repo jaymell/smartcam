@@ -9,6 +9,7 @@ import sys
 import multiprocessing
 import cv2
 import time
+import argparse
 import smartcam
 from smartcam.cloud.aws import S3Writer, KinesisWriter
 from smartcam.frame_reader import CV2FrameReader, run_frame_thread
@@ -21,8 +22,9 @@ from smartcam.video_processor import CV2VideoProcessor
 from smartcam.video_writer import FfmpegVideoWriter
 from smartcam.frame_writer import FrameWriter
 
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+
 logger = logging.getLogger(__name__)
+
 
 def get_device(use_default=True, device_path=None):
   """ assume lowest index camera found
@@ -54,16 +56,17 @@ def get_video_source(config):
     return get_device(use_default=False)
 
 
-def show_video(video_processor, fps):
+def show_video(video_processor, fps, debug=False):
   while True:
     frame = video_processor.get_frame()
     if frame is None:
       time.sleep(.1)
       continue
-    img = frame.image
-    t = frame.time
-    cv2.imshow(t.strftime('%Y-%m-%d'), img)
-    cv2.waitKey(1)
+    if debug:
+      img = frame.image
+      t = frame.time
+      cv2.imshow(t.strftime('%Y-%m-%d'), img)
+      cv2.waitKey(1)
 
 
 def parse_config():
@@ -95,6 +98,7 @@ def parse_config():
     p.get('video', 'camera_id'))
   return export
 
+
 def load_cloud_video_writer(config):
   ''' load object for writing stuff to cloud storage ---
       will return None if not configured '''
@@ -105,6 +109,7 @@ def load_cloud_video_writer(config):
     return S3Writer(config['AWS_REGION'],
       config['S3_BUCKET'])
   raise ValueError
+
 
 def load_cloud_frame_writer(config):
   ''' load object for writing stuff to cloud storage ---
@@ -119,6 +124,7 @@ def load_cloud_frame_writer(config):
     return KinesisWriter(config['AWS_REGION'],
       config['KINESIS_STREAM'])
   raise ValueError
+
 
 def load_motion_detector(config):
   pass
@@ -209,7 +215,7 @@ def main():
     # FIXME: make this configurable:
     # motion_detector = CV2BackgroundSubtractorMOG(debug=True)
     # motion_detector = CV2BackgroundSubtractorGMG(debug=True)
-    motion_detector = CV2FrameDiffMotionDetector(debug=True)
+    motion_detector = CV2FrameDiffMotionDetector(debug=DEBUG)
   except Exception as e:
     logger.critical("Failed to instantiate motion_detector: %s" % e)
     return 1
@@ -217,7 +223,7 @@ def main():
   try:
     logger.debug('starting motion_detector process')
     md_process = CV2MotionDetectorProcess(motion_detector,
-      image_queue, motion_queue, motion_timeout)
+      image_queue, motion_queue, motion_timeout, debug=DEBUG)
     md_process.start()
   except Exception as e:
     logger.critical("Failed to instantiate motion_detector process: %s" % e)
@@ -229,7 +235,7 @@ def main():
     logger.critical("Failed to instantiate CV2ImageProcessor: %s" % e)
     return 1
 
-  show_video(video_processor, fps)
+  show_video(video_processor, fps, debug=DEBUG)
   frame_thread.join()
   md_process.join()
   frame_tee.join()
@@ -238,5 +244,21 @@ def main():
   frame_writer.join()
   return 0
 
+
 if __name__ == '__main__':
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '-d', '--debug',
+      help="Print lots of debugging statements",
+      action="store_const", dest="loglevel", const=logging.DEBUG,
+      default=logging.INFO,
+  )
+
+  args = parser.parse_args()
+  logging.basicConfig(stream=sys.stdout, level=args.loglevel)
+
+  global LOG_LEVEL, DEBUG
+  LOG_LEVEL = logging.getLogger().level
+  DEBUG = LOG_LEVEL == logging.DEBUG
+
   main()

@@ -95,7 +95,8 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
                motion_detector,
                image_queue,
                motion_queue,
-               motion_timeout):
+               motion_timeout,
+               debug=False):
     multiprocessing.Process.__init__(self)
     self.motion_detector = motion_detector
     self.image_queue = image_queue
@@ -103,6 +104,7 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
     self.motion_queue = motion_queue
     self.last_motion_time = None
     self.frame = None
+    self.debug = debug
 
   def handle_motion(self, contours):
     logger.debug('motion detected')
@@ -110,8 +112,9 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
     draw_rectangles(self.frame.image, contours)
     draw_contours(self.frame.image, contours)
     self.motion_queue.put(self.frame)
-    cv2.imshow('MOTION_DETECTED', self.frame.image)
-    cv2.waitKey(1)
+    if self.debug:
+      cv2.imshow('MOTION_DETECTED', self.frame.image)
+      cv2.waitKey(1)
 
   def handle_motion_timeout(self):
     buf = []
