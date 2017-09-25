@@ -5,7 +5,7 @@ import logging
 import os
 import string
 import random
-from video import RemoteVideo, convert_time
+from smartcam.video import RemoteVideo, convert_time
 
 logger = logging.getLogger(__name__)
 
@@ -36,14 +36,17 @@ class S3Writer(CloudWriter):
   def _get_key(self, start_time):
     ''' given start time, convert it to reverse unix timestamp in
         ms for more efficient uploading '''
-    t = convert_time(start_time)
+    t = str(convert_time(start_time))
     return t[::-1]
+
+  def post_video(self, remote_video):
+    self.api.post_video(remote_video)
 
   def write_video(self, local_video):
     ''' write LocalVideo object and post to remote api '''
     logger.debug("write_fileobj: writing to s3")
-    self.client.upload_file(local_video.path, self.bucket, )
-    key = self._get_key(local_video.start)
+    key = os.path.join(self.base_path, self._get_key(local_video.start))
+    self.client.upload_file(local_video.path, self.bucket, key)
     remote_video = RemoteVideo(local_video.start,
       local_video.end,
       local_video.width,
@@ -52,7 +55,7 @@ class S3Writer(CloudWriter):
       key,
       self.region
     )
-    self.api.put_video(remote_video)
+    self.post_video(remote_video)
 
 
 class KinesisWriter(CloudWriter):

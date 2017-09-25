@@ -1,12 +1,12 @@
 import cv2
 import logging
 import os
-from smartcam.abstract import VideoWriter
 import subprocess
 from PIL import Image
 import multiprocessing
 import queue
-from video import LocalVideo
+from smartcam.abstract import VideoWriter
+from smartcam.video import LocalVideo
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +47,12 @@ class FfmpegVideoWriter(VideoWriter):
     def writer(frame):
       ''' write frames to video, optionally write video to cloud '''
       logger.debug("writing frame")
+      nonlocal last_frame
       if frame is None:
         logger.debug("received null frame")
         p.stdin.close()
         p.wait()
-        video = LocalVideo(start_frame.time,
+        local_video = LocalVideo(start_frame.time,
           last_frame.time,
           width,
           height,

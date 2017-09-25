@@ -3,9 +3,10 @@ import logging
 import queue
 import multiprocessing
 import time
-from smartcam.abstract import FrameReader
 import cv2
-from frame import Frame
+from smartcam.frame import Frame
+from smartcam.abstract import FrameReader
+
 logger = logging.getLogger(__name__)
 
 

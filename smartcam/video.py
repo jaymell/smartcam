@@ -57,4 +57,7 @@ class RemoteVideo(Video):
       'bucket': self.bucket,
       'key': self.key,
       'region': self.region
-    })
+    }, ensure_ascii=False)
+
+
+
