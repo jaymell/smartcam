@@ -6,6 +6,7 @@ import subprocess
 from PIL import Image
 import multiprocessing
 import queue
+from video import LocalVideo
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +28,16 @@ class FfmpegVideoWriter(VideoWriter):
 
   def get_writer(self, frame, ext='avi', is_color=True):
     ''' pass first frame of video, return writer function '''
+
+    logger.debug("called get_writer")
     width = frame.width
     height = frame.height
+    start_frame = frame
+    last_frame = None
     file_prefix = frame.time.isoformat()
-    logger.debug("called get_writer")
     file_name = "%s.%s" % (file_prefix, ext)
     full_path = os.path.join(self.path, file_name)
+
     p = subprocess.Popen([
       'ffmpeg', '-y', '-f', 'image2pipe', '-r', str(self.fps),
       '-s', '%sx%s' % (width, height), '-i', '-',
@@ -40,14 +45,22 @@ class FfmpegVideoWriter(VideoWriter):
        stdin=subprocess.PIPE)
 
     def writer(frame):
+      ''' write frames to video, optionally write video to cloud '''
       logger.debug("writing frame")
       if frame is None:
         logger.debug("received null frame")
         p.stdin.close()
         p.wait()
+        video = LocalVideo(start_frame.time,
+          last_frame.time,
+          width,
+          height,
+          full_path
+        )
         if self.cloud_writer is not None:
-          self.cloud_writer.write_file(full_path, "video/%s" % file_name)
+          self.cloud_writer.write_video(local_video)
         return
+      last_frame = frame
       buf = frame.encode()
       buf.seek(0)
       p.stdin.write(buf.read())
