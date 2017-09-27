@@ -6,6 +6,7 @@ import os
 import string
 import random
 from smartcam.video import RemoteVideo, convert_time
+from smartcam.api_manager import APIConnectionError
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,10 @@ class S3Writer(CloudWriter):
       key,
       self.region
     )
-    self.post_video(remote_video)
+    try:
+      self.post_video(remote_video)
+    except APIConnectionError as e:
+      logger.error("Failed to connect to remote API -- unable to post video info for %s" % key)
 
 
 class KinesisWriter(CloudWriter):
@@ -73,7 +77,6 @@ class KinesisWriter(CloudWriter):
 
   def write_fileobj(self, fileobj, dest):
     """ dest is not used """
-    # pass
     response = self.client.put_record(
         StreamName=self.stream,
         Data=fileobj.read(),
@@ -82,7 +85,6 @@ class KinesisWriter(CloudWriter):
 
   def write_str(self, src_str, dest):
     """ dest is not used """
-    # pass
     response = self.client.put_record(
         StreamName=self.stream,
         Data=src_str,

@@ -4,6 +4,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+class APIConnectionError(Exception):
+  pass
+
+
 class APIManager:
   ''' handles calls to remote api '''
 
@@ -18,6 +22,5 @@ class APIManager:
       headers = { 'Content-type': 'application/json' }
       r = requests.post(url, data=video.serialize(), headers=headers)
       r.raise_for_status()
-    except Exception as e:
-      logger.error(e)
-      raise e
+    except requests.exceptions.ConnectionError as e:
+      raise APIConnectionError
