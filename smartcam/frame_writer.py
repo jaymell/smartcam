@@ -17,7 +17,7 @@ class FrameWriter(threading.Thread):
     self.cloud_writer.write_str(frame.serialize(), "img/%s" % frame.time)
 
   def run(self):
-    logger.debug("starting FramePickler thread")
+    logger.debug("starting FrameWriter thread")
     while True:
       try:
         frame = self.queue.get()

@@ -21,7 +21,7 @@ from smartcam.motion_detector import ( CV2MotionDetectorProcess,
 from smartcam.video_processor import CV2VideoProcessor
 from smartcam.video_writer import FfmpegVideoWriter
 from smartcam.frame_writer import FrameWriter
-
+from smartcam.api_manager import APIManager
 
 logger = logging.getLogger(__name__)
 
@@ -96,10 +96,17 @@ def parse_config():
     p.get('storage', 'kinesis_stream'))
   export['CAMERA_ID'] = os.environ.get('CAMERA_ID',
     p.get('video', 'camera_id'))
+  export['BASE_API_URL'] = os.environ.get('',
+    p.get('api', 'base_url'))
   return export
 
 
-def load_cloud_video_writer(config):
+def load_api_manager(config):
+  url = config['BASE_API_URL']
+  return APIManager(url, None)
+
+
+def load_cloud_video_writer(config, api):
   ''' load object for writing stuff to cloud storage ---
       will return None if not configured '''
   dest = config['VIDEO_DESTINATION']
@@ -107,7 +114,7 @@ def load_cloud_video_writer(config):
     return None
   if dest == 's3':
     return S3Writer(config['AWS_REGION'],
-      config['S3_BUCKET'])
+      config['S3_BUCKET'], api, 'video')
   raise ValueError
 
 
@@ -119,7 +126,7 @@ def load_cloud_frame_writer(config):
     return None
   if dest == 's3':
     return S3Writer(config['AWS_REGION'],
-      config['S3_BUCKET'])
+      config['S3_BUCKET'], 'img')
   if dest == 'kinesis':
     return KinesisWriter(config['AWS_REGION'],
       config['KINESIS_STREAM'])
@@ -150,7 +157,7 @@ def main():
       out_queues=[video_queue, image_queue])
     frame_tee.start()
   except Exception as e:
-    logger.critical("Failed to instantiate frame_tee: %s " % e)
+    logger.critical("Failed to load frame_tee: %s " % e)
     return 1
 
   try:
@@ -158,13 +165,13 @@ def main():
      out_queues=[motion_video_queue, motion_image_queue])
     motion_tee.start()
   except Exception as e:
-    logger.critical("Failed to instantiate motion_tee: %s " % e)
+    logger.critical("Failed to load motion_tee: %s " % e)
     return 1
 
   try:
     frame_reader = CV2FrameReader(camera_id, video_source)
   except Exception as e:
-    logger.critical("Failed to instantiate CV2FrameReader: %s" % e)
+    logger.critical("Failed to load CV2FrameReader: %s" % e)
     return 1
 
   try:
@@ -179,45 +186,46 @@ def main():
     return 1
 
   try:
-    logger.debug('initializing cloud_video_writer')
-    cloud_video_writer = load_cloud_video_writer(config)
+    api_manager = load_api_manager(config)
   except Exception as e:
-    logger.critical("Failed to instantiate cloud_video_writer: %s" % e)
+    logger.critical("Failed to load api_manager: %s" % e)
     return 1
 
   try:
-    logger.debug('initializing cloud_frame_writer')
+    cloud_video_writer = load_cloud_video_writer(config, api_manager)
+  except Exception as e:
+    logger.critical("Failed to load cloud_video_writer: %s" % e)
+    return 1
+
+  try:
     cloud_frame_writer = load_cloud_frame_writer(config)
   except Exception as e:
-    logger.critical("Failed to instantiate cloud_frame_writer: %s" % e)
+    logger.critical("Failed to load cloud_frame_writer: %s" % e)
     return 1
 
   try:
-    logger.debug('initializing video_writer')
     video_writer = FfmpegVideoWriter(motion_video_queue,
       fps, path=None,
       cloud_writer=cloud_video_writer)
     video_writer.start()
   except Exception as e:
-    logger.critical("Failed to instantiate video_writer: %s" % e)
+    logger.critical("Failed to load video_writer: %s" % e)
     return 1
 
   try:
-    logger.debug('initializing frame_writer')
     frame_writer = FrameWriter(motion_image_queue, cloud_frame_writer)
     frame_writer.start()
   except Exception as e:
-    logger.critical("Failed to instantiate frame_writer: %s" % e)
+    logger.critical("Failed to load frame_writer: %s" % e)
     return 1
 
   try:
-    logger.debug('initializing motion_detector')
     # FIXME: make this configurable:
     # motion_detector = CV2BackgroundSubtractorMOG(debug=True)
     # motion_detector = CV2BackgroundSubtractorGMG(debug=True)
     motion_detector = CV2FrameDiffMotionDetector(debug=DEBUG)
   except Exception as e:
-    logger.critical("Failed to instantiate motion_detector: %s" % e)
+    logger.critical("Failed to load motion_detector: %s" % e)
     return 1
 
   try:
@@ -226,13 +234,13 @@ def main():
       image_queue, motion_queue, motion_timeout, debug=DEBUG)
     md_process.start()
   except Exception as e:
-    logger.critical("Failed to instantiate motion_detector process: %s" % e)
+    logger.critical("Failed to load motion_detector process: %s" % e)
     return 1
 
   try:
     video_processor = CV2VideoProcessor(video_queue)
   except Exception as e:
-    logger.critical("Failed to instantiate CV2ImageProcessor: %s" % e)
+    logger.critical("Failed to load CV2ImageProcessor: %s" % e)
     return 1
 
   show_video(video_processor, fps, debug=DEBUG)
