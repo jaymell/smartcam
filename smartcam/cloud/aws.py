@@ -48,7 +48,9 @@ class S3Writer(CloudWriter):
     logger.debug("write_fileobj: writing to s3")
     key = os.path.join(self.base_path, self._get_key(local_video.start))
     self.client.upload_file(local_video.path, self.bucket, key)
-    remote_video = RemoteVideo(local_video.start,
+    remote_video = RemoteVideo(
+      local_video.camera_id,
+      local_video.start,
       local_video.end,
       local_video.width,
       local_video.height,

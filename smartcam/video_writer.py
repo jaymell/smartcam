@@ -52,7 +52,8 @@ class FfmpegVideoWriter(VideoWriter):
         logger.debug("received null frame")
         p.stdin.close()
         p.wait()
-        local_video = LocalVideo(start_frame.time,
+        local_video = LocalVideo(start_frame.id,
+          start_frame.time,
           last_frame.time,
           width,
           height,
