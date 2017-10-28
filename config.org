@@ -3,10 +3,9 @@
 # webcams from being read;
 # just 'device' otherwise:
 source=device,non-default
-#source=device
 
 # time in seconds to continue writing
-# video after last motion detected
+# video/images after last motion detected
 motion_timeout=5
 
 # sets interval at which main loop runs:
@@ -29,3 +28,6 @@ s3_secret=
 aws_region=
 aws_key=
 aws_secret=
+
+[api]
+base_url=http://localhost:8080/
