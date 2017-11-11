@@ -75,11 +75,11 @@ def parse_config():
   p.read(config_file)
   export = {}
   export['VIDEO_SOURCE'] = os.environ.get('VIDEO_SOURCE',
-    p.get('video', 'source'))
+    p.get('camera', 'source'))
   export['MOTION_TIMEOUT'] = float(os.environ.get('MOTION_TIMEOUT',
-    p.get('video', 'motion_timeout')))
+    p.get('camera', 'motion_timeout')))
   export['FPS'] = float(os.environ.get('FPS',
-    p.get('video', 'fps')))
+    p.get('camera', 'fps')))
   export['VIDEO_DESTINATION'] = os.environ.get('VIDEO_DESTINATION',
     p.get('storage', 'video_destination'))
   export['IMAGE_DESTINATION'] = os.environ.get('IMAGE_DESTINATION',
@@ -95,7 +95,7 @@ def parse_config():
   export['KINESIS_STREAM'] = os.environ.get('KINESIS_STREAM',
     p.get('storage', 'kinesis_stream'))
   export['CAMERA_ID'] = os.environ.get('CAMERA_ID',
-    p.get('video', 'camera_id'))
+    p.get('camera', 'camera_id'))
   export['BASE_API_URL'] = os.environ.get('',
     p.get('api', 'base_url'))
   return export
@@ -244,12 +244,14 @@ def main():
     return 1
 
   show_video(video_processor, fps, debug=DEBUG)
+
   frame_thread.join()
   md_process.join()
   frame_tee.join()
   motion_tee.join()
   video_writer.join()
   frame_writer.join()
+
   return 0
 
 

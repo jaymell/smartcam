@@ -1,4 +1,7 @@
-[video]
+[camera]
+# unique identifier for camera
+camera_id = 1
+
 # 'device,non-default' to help avoid built-in
 # webcams from being read;
 # just 'device' otherwise:
@@ -11,8 +14,6 @@ motion_timeout=5
 # sets interval at which main loop runs:
 fps=14
 
-# unique identifier for camera
-camera_id = 1
 
 [storage]
 # local or s3
