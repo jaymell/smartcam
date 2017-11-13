@@ -243,6 +243,12 @@ def main():
     logger.critical("Failed to load CV2ImageProcessor: %s" % e)
     return 1
 
+  try:
+    api_manager.post_camera(camera_id)
+  except Exception as e:
+    logger.critical("Failed to post camera: %s" % e)
+    return 1
+
   show_video(video_processor, fps, debug=DEBUG)
 
   frame_thread.join()
