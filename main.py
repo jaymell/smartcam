@@ -28,9 +28,9 @@ logger = logging.getLogger(__name__)
 
 def get_device(use_default=True, device_path=None):
   """ assume lowest index camera found
-       is the default -- if use_default False,
-       return second-lowest camera index """
-
+      is the default -- if use_default False,
+      return second-lowest camera index
+      FIXME: this doesn't work very well!!! """
   devs = glob.glob('/sys/class/video4linux/*')
   dev_nums = []
   for dev in devs:
@@ -54,6 +54,8 @@ def get_video_source(config):
     return get_device()
   elif config['VIDEO_SOURCE'] == 'device,non-default':
     return get_device(use_default=False)
+  else:
+    return config['VIDEO_SOURCE']
 
 
 def show_video(video_processor, fps, debug=False):
@@ -169,15 +171,11 @@ def main():
     return 1
 
   try:
-    frame_reader = CV2FrameReader(camera_id, video_source)
-  except Exception as e:
-    logger.critical("Failed to load CV2FrameReader: %s" % e)
-    return 1
-
-  try:
     logger.debug('starting frame_reader')
     frame_thread = multiprocessing.Process(target=run_frame_thread,
-                                           args=(frame_reader,
+                                           args=(CV2FrameReader,
+                                                 camera_id,
+                                                 video_source,
                                                  frame_queue,
                                                  fps))
     frame_thread.start()

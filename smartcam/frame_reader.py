@@ -3,7 +3,6 @@ import logging
 import queue
 import multiprocessing
 import time
-import cv2
 from smartcam.frame import Frame
 from smartcam.abstract import FrameReader
 
@@ -30,8 +29,15 @@ class CV2FrameReader(FrameReader):
     return None
 
 
-def run_frame_thread(frame_reader, queue, fps):
+def run_frame_thread(frame_reader_class, camera_id, video_source, queue, fps):
+  """ initialize frame_reader and start thread """
   logging.debug("starting frame_reader run loop")
+  try:
+    frame_reader = frame_reader_class(camera_id, video_source)
+  except Exception as e:
+    logger.critical("Failed to load CV2FrameReader: %s" % e)
+    raise e
+
   # dump initial frames, as it seems certain cameras
   # flub the first few for some reason:
   for i in range(5):
