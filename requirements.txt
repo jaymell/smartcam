@@ -1,0 +1,6 @@
+opencv_python==3.2.0.6
+numpy==1.13.1
+s3transfer==0.1.11
+boto3==1.4.4
+requests==2.9.1
+Pillow==4.3.0
