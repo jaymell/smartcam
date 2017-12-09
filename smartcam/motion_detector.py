@@ -119,10 +119,11 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
   def handle_motion_timeout(self):
     buf = []
     self.last_motion_time = None
-    cv2.destroyWindow('MOTION_DETECTED')
-    # makes destroyWindow work -- may
-    # be a better way to do this:
-    cv2.waitKey(1)
+    if self.debug:
+      cv2.destroyWindow('MOTION_DETECTED')
+      # makes destroyWindow work -- may
+      # be a better way to do this:
+      cv2.waitKey(1)
     self.motion_queue.put(None)
 
   def motion_is_timed_out(self):

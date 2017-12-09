@@ -14,20 +14,20 @@ logger = logging.getLogger(__name__)
 class FfmpegVideoWriter(VideoWriter):
   """ opencv2 video writer """
 
-  def __init__(self, queue, fps, path=None,
-    cloud_writer=None):
+  def __init__(self, queue, fps, path=None, cloud_writer=None):
     multiprocessing.Process.__init__(self)
     self.queue = queue
     self.fps = fps
     if path is not None:
       self.path = path
     else:
-      self.path = os.path.join(os.path.expanduser('~'), 'Videos')
+      self.path = '/tmp'
     # may still be None:
     self.cloud_writer = cloud_writer
 
   def get_writer(self, frame, ext='avi', is_color=True):
-    ''' pass first frame of video, return writer function '''
+    ''' pass first frame of video, return writer function
+        and name of file '''
 
     logger.debug("called get_writer")
     width = frame.width
@@ -67,10 +67,11 @@ class FfmpegVideoWriter(VideoWriter):
       buf.seek(0)
       p.stdin.write(buf.read())
 
-    return writer
+    return writer, full_path
 
   def run(self):
     writer = None
+    video_file = None
     while True:
       try:
         frame = self.queue.get()
@@ -80,8 +81,18 @@ class FfmpegVideoWriter(VideoWriter):
         if writer is not None:
           writer(frame)
           writer = None
+        if video_file is not None:
+          try:
+            os.remove(video_file)
+          except Exception as e:
+            logger.error("Failed to delete video")
+            raise e
         continue
       if writer is None:
         logger.debug('instantiating writer')
-        writer = self.get_writer(frame, ext='mp4')
-      writer(frame)
+        writer, video_file = self.get_writer(frame, ext='mp4')
+      try:
+        writer(frame)
+      except Exception as e:
+        logger.error("Failed to write frame to video ")
+        raise e
