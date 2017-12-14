@@ -14,6 +14,9 @@ motion_timeout=5
 # sets interval at which main loop runs:
 fps=14
 
+# minimum area in pixels a detected motion area
+# must be in order to trigger motion detection event:
+motion_area_threshold=500
 
 [storage]
 # local or s3

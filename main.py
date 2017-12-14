@@ -98,8 +98,10 @@ def parse_config():
     p.get('storage', 'kinesis_stream'))
   export['CAMERA_ID'] = os.environ.get('CAMERA_ID',
     p.get('camera', 'camera_id'))
-  export['BASE_API_URL'] = os.environ.get('',
+  export['BASE_API_URL'] = os.environ.get('BASE_API_URL',
     p.get('api', 'base_url'))
+  export['MOTION_AREA_THRESH'] = int(os.environ.get('MOTION_AREA_THRESH',
+    p.get('camera', 'motion_area_threshold', fallback=100)))
   return export
 
 
@@ -221,7 +223,7 @@ def main():
     # FIXME: make this configurable:
     # motion_detector = CV2BackgroundSubtractorMOG(debug=True)
     # motion_detector = CV2BackgroundSubtractorGMG(debug=True)
-    motion_detector = CV2FrameDiffMotionDetector(debug=DEBUG)
+    motion_detector = CV2FrameDiffMotionDetector(debug=DEBUG, area_threshold=config['MOTION_AREA_THRESH'])
   except Exception as e:
     logger.critical("Failed to load motion_detector: %s" % e)
     return 1

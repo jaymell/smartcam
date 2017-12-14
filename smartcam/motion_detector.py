@@ -230,13 +230,14 @@ class CV2FrameDiffMotionDetector(MotionDetector):
   ''' detect motion by differencing current and previous
       frame
   '''
-  def __init__(self, debug=False):
+  def __init__(self, debug=False, area_threshold=100):
     self.bg_lock = multiprocessing.Lock()
     self.cur_lock = multiprocessing.Lock()
     self._current = None
     self._background = None
     self.daemon = True
     self.debug = debug
+    self.area_threshold = area_threshold
 
   def detect_motion(self):
     delta = self.get_delta()
@@ -247,7 +248,7 @@ class CV2FrameDiffMotionDetector(MotionDetector):
       cv2.waitKey(1)
     thresh = threshold_image(delta)
     thresh = cv2.dilate(thresh, None, iterations=2)
-    contours = find_contours(thresh, threshold=1000)
+    contours = find_contours(thresh, self.area_threshold)
     return contours
 
   def get_delta(self):
