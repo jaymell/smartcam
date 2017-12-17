@@ -1,37 +1,18 @@
 FROM python:3.6
 ### https://github.com/janza/docker-python3-opencv/blob/opencv_contrib/Dockerfile
-RUN echo 'deb http://ftp.uk.debian.org/debian jessie-backports main' >> /etc/apt/sources.list
-RUN apt-get update && \
-        apt-get install -y \
-        build-essential \
-        cmake \
-        git \
-        wget \
-        unzip \
-        yasm \
-        ffmpeg \
-        pkg-config \
-        libswscale-dev \
-        libtbb2 \
-        libtbb-dev \
-        libjpeg-dev \
-        libpng-dev \
-        libtiff-dev \
-        libjasper-dev \
-        libpq-dev \
-        libavformat-dev \
-        libavcodec-dev \
-        libavdevice-dev \
-        libavfilter-dev \
-        libavformat-dev \
-        libavresample-dev \
-        libavutil-dev \
-        libswscale-dev \
-        libavc1394-dev \
-        libavl-dev
 
-RUN pip install numpy
+ENV APP_DIR /app
+
+COPY install.sh $APP_DIR/
+
+WORKDIR $APP_DIR
+
+### install os packages:
+RUN ./install.sh
+
 WORKDIR /
+
+RUN pip install --no-cache-dir numpy
 RUN wget https://github.com/opencv/opencv_contrib/archive/3.3.0.zip \
 && unzip 3.3.0.zip \
 && rm 3.3.0.zip
@@ -62,12 +43,12 @@ RUN wget https://github.com/opencv/opencv/archive/3.3.0.zip \
 && rm /3.3.0.zip \
 && rm -r /opencv-3.3.0
 
-ENV APP_DIR /app
-WORKDIR $APP_DIR
 
 COPY requirements.txt $APP_DIR/
 
-RUN pip install -r requirements.txt
+WORKDIR $APP_DIR
+
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . $APP_DIR/
 
