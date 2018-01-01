@@ -76,3 +76,14 @@ class CloudWriter(metaclass=abc.ABCMeta):
   def write_str(self, src, dest):
     """ write to file-like object """
     pass
+
+
+class Queue(metaclass=abc.ABCMeta):
+  """ queue interface """
+
+  @abc.abstractmethod
+  def get(self):
+    pass
+
+  def put(self, item):
+    pass

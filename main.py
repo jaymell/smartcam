@@ -22,7 +22,7 @@ from smartcam.video_processor import CV2VideoProcessor
 from smartcam.video_writer import FfmpegVideoWriter
 from smartcam.frame_writer import FrameWriter
 from smartcam.api_manager import APIManager
-
+from smartcam.queue import Queue
 logger = logging.getLogger(__name__)
 
 
@@ -159,12 +159,12 @@ def main(show_video=False):
   camera_id = config['CAMERA_ID']
   fps = config['FPS']
   video_source = get_video_source(config)
-  frame_queue = multiprocessing.Queue()
-  video_queue = multiprocessing.Queue()
-  image_queue = multiprocessing.Queue()
-  motion_queue = multiprocessing.Queue()
-  motion_video_queue = multiprocessing.Queue()
-  motion_image_queue = multiprocessing.Queue()
+  frame_queue = Queue("frame_queue", debug=DEBUG)
+  video_queue = Queue("video_queue", debug=DEBUG)
+  image_queue = Queue("image_queue", debug=DEBUG)
+  motion_queue = Queue("motion_queue", debug=DEBUG)
+  motion_video_queue = Queue("motion_video_queue", debug=DEBUG)
+  motion_image_queue = Queue("motion_image_queue", debug=DEBUG)
 
   try:
     frame_tee = QueueTee(in_queue=frame_queue,
@@ -303,6 +303,7 @@ if __name__ == '__main__':
   logging.getLogger('boto3').setLevel(logging.WARNING)
   logging.getLogger('botocore').setLevel(logging.WARNING)
   logging.getLogger('nose').setLevel(logging.WARNING)
+  logging.getLogger('s3transfer').setLevel(logging.WARNING)
 
   x = main(show_video)
   sys.exit(x)
