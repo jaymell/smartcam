@@ -96,7 +96,8 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
                image_queue,
                motion_queue,
                motion_timeout,
-               debug=False):
+               debug=False,
+               show_video=False):
     multiprocessing.Process.__init__(self)
     self.motion_detector = motion_detector
     self.image_queue = image_queue
@@ -105,6 +106,7 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
     self.last_motion_time = None
     self.frame = None
     self.debug = debug
+    self.show_video = show_video
 
   def handle_motion(self, contours):
     logger.debug('motion detected')
@@ -112,14 +114,14 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
     draw_rectangles(self.frame.image, contours)
     draw_contours(self.frame.image, contours)
     self.motion_queue.put(self.frame)
-    if self.debug:
+    if self.show_video:
       cv2.imshow('MOTION_DETECTED', self.frame.image)
       cv2.waitKey(1)
 
   def handle_motion_timeout(self):
     buf = []
     self.last_motion_time = None
-    if self.debug:
+    if self.show_video:
       cv2.destroyWindow('MOTION_DETECTED')
       # makes destroyWindow work -- may
       # be a better way to do this:
@@ -164,11 +166,12 @@ class CV2BackgroundSubtractorMOG(MotionDetector):
   ''' detect motion using cv2.BackgroundSubtractorMOG
   '''
 
-  def __init__(self, debug=False):
+  def __init__(self, debug=False, show_video=False):
     self.cur_lock = multiprocessing.Lock()
     self._current = None
     self.daemon = True
     self.debug = debug
+    self.show_video = show_video
     self.fgbg = cv2.bgsegm.createBackgroundSubtractorMOG()
 
   @property
@@ -185,7 +188,7 @@ class CV2BackgroundSubtractorMOG(MotionDetector):
   def detect_motion(self):
     fgmask = adaptive_threshold_image(self.current.image)
     fgmask = self.fgbg.apply(fgmask)
-    if self.debug:
+    if self.show_video:
       cv2.imshow('BackgroundSubtractorMOG', fgmask)
       cv2.waitKey(1)
     contours = find_contours(fgmask)
@@ -196,11 +199,12 @@ class CV2BackgroundSubtractorGMG(MotionDetector):
   ''' detect motion using cv2.BackgroundSubtractorGMG
   '''
 
-  def __init__(self, debug=False):
+  def __init__(self, debug=False, show_video=False):
     self.cur_lock = multiprocessing.Lock()
     self._current = None
     self.daemon = True
     self.debug = debug
+    self.show_video = show_video
     self.fgbg = cv2.bgsegm.createBackgroundSubtractorGMG()
 
   @property
@@ -219,7 +223,7 @@ class CV2BackgroundSubtractorGMG(MotionDetector):
     fgmask = self.fgbg.apply(self.current.image)
     fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel)
     thresh = threshold_image(fgmask)
-    if self.debug:
+    if self.show_video:
       cv2.imshow('BackgroundSubtractorGMG', thresh)
       cv2.waitKey(1)
     contours = find_contours(thresh)
@@ -230,20 +234,21 @@ class CV2FrameDiffMotionDetector(MotionDetector):
   ''' detect motion by differencing current and previous
       frame
   '''
-  def __init__(self, debug=False, area_threshold=100):
+  def __init__(self, area_threshold=100, debug=False, show_video=False):
     self.bg_lock = multiprocessing.Lock()
     self.cur_lock = multiprocessing.Lock()
     self._current = None
     self._background = None
     self.daemon = True
     self.debug = debug
+    self.show_video = show_video
     self.area_threshold = area_threshold
 
   def detect_motion(self):
     delta = self.get_delta()
     if delta is None:
       return None
-    if self.debug:
+    if self.show_video:
       cv2.imshow('CV2FrameDiffMotionDetector', delta)
       cv2.waitKey(1)
     thresh = threshold_image(delta)

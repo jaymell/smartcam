@@ -58,13 +58,23 @@ def get_video_source(config):
     return config['VIDEO_SOURCE']
 
 
-def show_video(video_processor, fps, debug=False):
+def handle_video(video_processor, fps, show_video=False):
+  interval = 100.0
+  inc = 0
+  f1 = None
   while True:
+    inc += 1
     frame = video_processor.get_frame()
     if frame is None:
       time.sleep(.1)
       continue
-    if debug:
+    if inc % interval == 0:
+      if f1 is not None:
+        f2 = frame.time
+        diff = f2 - f1
+        logger.debug("FPS: %s" % (interval/diff.seconds))
+      f1 = frame.time
+    if show_video:
       img = frame.image
       t = frame.time
       cv2.imshow(t.strftime('%Y-%m-%d'), img)
@@ -141,7 +151,7 @@ def load_motion_detector(config):
   pass
 
 
-def main():
+def main(show_video=False):
   """ initialize all the things  """
 
   config = parse_config()
@@ -221,9 +231,14 @@ def main():
 
   try:
     # FIXME: make this configurable:
-    # motion_detector = CV2BackgroundSubtractorMOG(debug=True)
-    # motion_detector = CV2BackgroundSubtractorGMG(debug=True)
-    motion_detector = CV2FrameDiffMotionDetector(debug=DEBUG, area_threshold=config['MOTION_AREA_THRESH'])
+    # motion_detector = CV2BackgroundSubtractorMOG(debug=DEBUG,
+    #  show_video=show_video)
+    # motion_detector = CV2BackgroundSubtractorGMG(debug=DEBUG,
+    #  show_video=show_video)
+    motion_detector = CV2FrameDiffMotionDetector(
+      area_threshold=config['MOTION_AREA_THRESH'],
+      debug=DEBUG,
+      show_video=show_video)
   except Exception as e:
     logger.critical("Failed to load motion_detector: %s" % e)
     return 1
@@ -231,7 +246,8 @@ def main():
   try:
     logger.debug('starting motion_detector process')
     md_process = CV2MotionDetectorProcess(motion_detector,
-      image_queue, motion_queue, motion_timeout, debug=DEBUG)
+      image_queue, motion_queue, motion_timeout, debug=DEBUG,
+      show_video=show_video)
     md_process.start()
   except Exception as e:
     logger.critical("Failed to load motion_detector process: %s" % e)
@@ -246,10 +262,9 @@ def main():
   try:
     api_manager.post_camera(camera_id)
   except Exception as e:
-    logger.critical("Failed to post camera: %s" % e)
-    return 1
+    logger.warn("Failed to post camera: %s" % e)
 
-  show_video(video_processor, fps, debug=DEBUG)
+  handle_video(video_processor, fps, show_video=show_video)
 
   frame_thread.join()
   md_process.join()
@@ -269,6 +284,12 @@ if __name__ == '__main__':
       action="store_const", dest="loglevel", const=logging.DEBUG,
       default=logging.INFO,
   )
+  parser.add_argument(
+      '-s', '--show-video',
+      help="Show live frame stream and motion detection streams",
+      action="store_true",
+      default=False
+  )
 
   args = parser.parse_args()
   logging.basicConfig(stream=sys.stdout, level=args.loglevel)
@@ -276,5 +297,13 @@ if __name__ == '__main__':
   global LOG_LEVEL, DEBUG
   LOG_LEVEL = logging.getLogger().level
   DEBUG = LOG_LEVEL == logging.DEBUG
+  show_video = args.show_video
 
-  main()
+  ### reduce aws sdk logging:
+  logging.getLogger('boto3').setLevel(logging.WARNING)
+  logging.getLogger('botocore').setLevel(logging.WARNING)
+  logging.getLogger('nose').setLevel(logging.WARNING)
+
+  x = main(show_video)
+  sys.exit(x)
+
