@@ -73,12 +73,18 @@ def blur_image(image):
   return cv2.GaussianBlur(image, (21, 21), 0)
 
 
-def find_contours(image, threshold=100):
+def find_contours(image, threshold=100, debug=False):
+    t0 = datetime.datetime.now()
     (_, _contours, _) = cv2.findContours(image, cv2.RETR_TREE,
       cv2.CHAIN_APPROX_SIMPLE)
+    t1 = datetime.datetime.now()
     if not _contours:
       return None
     contours = [ i for i in _contours if cv2.contourArea(i) > threshold ]
+    t2 = datetime.datetime.now()
+    if debug:
+      logger.debug("findContours time: %s" % ((t1-t0).total_seconds()))
+      logger.debug("filter contours time: %s" % ((t2-t1).total_seconds()))
     return contours
 
 
@@ -243,17 +249,43 @@ class CV2FrameDiffMotionDetector(MotionDetector):
     self.debug = debug
     self.show_video = show_video
     self.area_threshold = area_threshold
+    self.thresh_times = []
+    self.dilate_times = []
+    self.contour_times = []
+    self.i = 0
 
   def detect_motion(self):
+    self.i = self.i + 1
     delta = self.get_delta()
     if delta is None:
       return None
     if self.show_video:
       cv2.imshow('CV2FrameDiffMotionDetector', delta)
       cv2.waitKey(1)
+
+    t1 = datetime.datetime.now()
+
     thresh = threshold_image(delta)
+    t2 = datetime.datetime.now()
+
     thresh = cv2.dilate(thresh, None, iterations=2)
-    contours = find_contours(thresh, self.area_threshold)
+    t3 = datetime.datetime.now()
+
+    contours = find_contours(thresh, self.area_threshold, debug=self.debug)
+    t4 = datetime.datetime.now()
+
+    if self.debug:
+      self.thresh_times.append((t2-t1).total_seconds())
+      self.dilate_times.append((t3-t2).total_seconds())
+      self.contour_times.append((t4-t3).total_seconds())
+      if self.i == 20:
+        self.i = 0
+        logger.debug("Thresh avg. time: %s" % (sum(self.thresh_times)/len(self.thresh_times)))
+        logger.debug("Dilate avg. time: %s" % (sum(self.dilate_times)/len(self.dilate_times)))
+        logger.debug("Contours avg. time: %s" % (sum(self.contour_times)/len(self.contour_times)))
+        self.thresh_times = []
+        self.dilate_times = []
+        self.contour_times = []
     return contours
 
   def get_delta(self):

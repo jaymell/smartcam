@@ -68,7 +68,8 @@ def handle_video(video_processor, fps, show_video=False):
     if frame is None:
       time.sleep(.1)
       continue
-    if inc % interval == 0:
+    if inc == interval:
+      inc = 0
       if f1 is not None:
         f2 = frame.time
         diff = f2 - f1
