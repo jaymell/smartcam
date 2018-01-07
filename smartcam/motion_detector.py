@@ -36,7 +36,7 @@ def resize_image(image, width):
 
 
 def downsample_image(image):
-  # image = resize_image(image, 500)
+  image = resize_image(image, 400)
   image = blur_image(image)
   image = grayscale_image(image)
   # image = cv2.Canny(image, 30, 200)
@@ -118,8 +118,8 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
   def handle_motion(self, contours):
     logger.debug('motion detected')
     self.last_motion_time = self.frame.time
-    draw_rectangles(self.frame.image, contours)
-    draw_contours(self.frame.image, contours)
+    # draw_rectangles(self.frame.image, contours)
+    # draw_contours(self.frame.image, contours)
     self.motion_queue.put(self.frame)
     if self.show_video:
       cv2.imshow('MOTION_DETECTED', self.frame.image)
