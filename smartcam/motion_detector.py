@@ -29,7 +29,7 @@ def equalize_image(image):
 
 
 def resize_image(image, width):
-  (h, w) = image.height, image.width
+  (h, w) = img.shape[:2]
   r = width / float(w)
   dim = (width, int(h * r))
   return cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
