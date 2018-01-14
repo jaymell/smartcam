@@ -64,7 +64,7 @@ class S3Writer(CloudWriter):
       except APIConnectionError as e:
         logger.error("Failed to connect to remote API -- unable to post video info for %s" % key)
     except Exception as e:
-      logger.error("Failed to upload video %s to bucket %s, key %s" % (local_video.path, self.bucket, self.key))
+      logger.error("Failed to upload video %s to bucket %s, key %s" % (local_video.path, self.bucket, key))
 
 
 class KinesisWriter(CloudWriter):
