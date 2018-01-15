@@ -16,6 +16,7 @@ class FfmpegVideoWriter(VideoWriter):
 
   def __init__(self, queue, fps, path=None, cloud_writer=None):
     multiprocessing.Process.__init__(self)
+    self.name =  FfmpegVideoWriter.__name__
     self.queue = queue
     self.fps = fps
     if path is not None:

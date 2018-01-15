@@ -169,7 +169,8 @@ def main(show_video=False):
 
   try:
     frame_tee = QueueTee(in_queue=frame_queue,
-      out_queues=[video_queue, image_queue])
+      out_queues=[video_queue, image_queue],
+      name="frame_tee")
     frame_tee.start()
   except Exception as e:
     logger.critical("Failed to load frame_tee: %s " % e)
@@ -177,7 +178,8 @@ def main(show_video=False):
 
   try:
     motion_tee = QueueTee(in_queue=motion_queue,
-     out_queues=[motion_video_queue, motion_image_queue])
+     out_queues=[motion_video_queue, motion_image_queue],
+     name="motion_tee")
     motion_tee.start()
   except Exception as e:
     logger.critical("Failed to load motion_tee: %s " % e)

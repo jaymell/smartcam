@@ -11,14 +11,15 @@ class QueueTee(multiprocessing.Process):
       and put it onto out_queues
   '''
 
-  def __init__(self, in_queue, out_queues):
+  def __init__(self, in_queue, out_queues, name):
     multiprocessing.Process.__init__(self)
+    self.name = name
     self.in_queue = in_queue
     self.out_queues = out_queues
     self.daemon = True
 
   def run(self):
-    logger.debug("starting queue_tee run loop")
+    logger.debug("starting queue_tee %s run loop" % self.name)
     while True:
       try:
         frame = self.in_queue.get()

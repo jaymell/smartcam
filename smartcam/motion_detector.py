@@ -105,6 +105,7 @@ class CV2MotionDetectorProcess(MotionDetectorProcess):
                debug=False,
                show_video=False):
     multiprocessing.Process.__init__(self)
+    self.name = CV2MotionDetectorProcess.__name__
     self.motion_detector = motion_detector
     self.image_queue = image_queue
     self.motion_timeout = datetime.timedelta(0, motion_timeout)

@@ -10,6 +10,7 @@ class FrameWriter(threading.Thread):
 
   def __init__(self, queue, cloud_writer):
     threading.Thread.__init__(self)
+    self.name = FrameWriter.__name__
     self.queue = queue
     self.cloud_writer = cloud_writer
 
