@@ -47,21 +47,24 @@ class S3Writer(CloudWriter):
     ''' write LocalVideo object and post to remote api '''
     logger.debug("write_fileobj: writing to s3")
     key = os.path.join(self.base_path, self._get_key(local_video.start))
-    self.client.upload_file(local_video.path, self.bucket, key)
-    remote_video = RemoteVideo(
-      local_video.camera_id,
-      local_video.start,
-      local_video.end,
-      local_video.width,
-      local_video.height,
-      self.bucket,
-      key,
-      self.region
-    )
     try:
-      self.post_video(remote_video)
-    except APIConnectionError as e:
-      logger.error("Failed to connect to remote API -- unable to post video info for %s" % key)
+      self.client.upload_file(local_video.path, self.bucket, key, ExtraArgs={'ContentType': 'video/mp4'})
+      remote_video = RemoteVideo(
+        local_video.camera_id,
+        local_video.start,
+        local_video.end,
+        local_video.width,
+        local_video.height,
+        self.bucket,
+        key,
+        self.region
+      )
+      try:
+        self.post_video(remote_video)
+      except APIConnectionError as e:
+        logger.error("Failed to connect to remote API -- unable to post video info for %s" % key)
+    except Exception as e:
+      logger.error("Failed to upload video %s to bucket %s, key %s" % (local_video.path, self.bucket, key))
 
 
 class KinesisWriter(CloudWriter):
