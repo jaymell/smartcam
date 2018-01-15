@@ -15,7 +15,10 @@ class FrameWriter(threading.Thread):
     self.cloud_writer = cloud_writer
 
   def write_frame(self, frame):
-    self.cloud_writer.write_str(frame.serialize(), "img/%s" % frame.time)
+    try:
+      self.cloud_writer.write_str(frame.serialize(), "img/%s" % frame.time)
+    except Exception as e:
+      logger.error("Failed to write frame to cloud_writer")
 
   def run(self):
     logger.debug("starting FrameWriter thread")

@@ -23,6 +23,7 @@ from smartcam.video_writer import FfmpegVideoWriter
 from smartcam.frame_writer import FrameWriter
 from smartcam.api_manager import APIManager
 from smartcam.queue import Queue
+
 logger = logging.getLogger(__name__)
 
 
@@ -295,7 +296,9 @@ if __name__ == '__main__':
   )
 
   args = parser.parse_args()
-  logging.basicConfig(stream=sys.stdout, level=args.loglevel)
+  logging.basicConfig(stream=sys.stdout,
+    level=args.loglevel,
+    format='%(asctime)s %(message)s')
 
   global LOG_LEVEL, DEBUG
   LOG_LEVEL = logging.getLogger().level
