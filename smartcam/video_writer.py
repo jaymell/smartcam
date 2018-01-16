@@ -61,11 +61,16 @@ class FfmpegVideoWriter(VideoWriter):
           full_path
         )
         if self.cloud_writer is not None:
-          self.cloud_writer.write_video(local_video)
+          try:
+            self.cloud_writer.write_video(local_video)
+          except Exception as e:
+            logger.error("Failed to write video to cloud_writer: %s" % e)
         return
       last_frame = frame
+      logger.debug("Encoding frame")
       buf = frame.encode()
       buf.seek(0)
+      logger.debug("Writing video frame to pipe")
       p.stdin.write(buf.read())
 
     return writer, full_path
@@ -80,10 +85,12 @@ class FfmpegVideoWriter(VideoWriter):
         continue
       if frame is None:
         if writer is not None:
+          logger.debug("writing null frame")
           writer(frame)
           writer = None
         if video_file is not None:
           try:
+            logger.debug("deleting %s" % video_file)
             os.remove(video_file)
           except Exception as e:
             logger.error("Failed to delete video")
