@@ -5,6 +5,7 @@ import subprocess
 from PIL import Image
 import multiprocessing
 import queue
+import datetime
 from smartcam.abstract import VideoWriter
 from smartcam.video import LocalVideo
 
