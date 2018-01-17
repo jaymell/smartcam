@@ -54,10 +54,10 @@ class FfmpegVideoWriter(VideoWriter):
         t1 = datetime.datetime.now()
         p.stdin.close()
         t2 = datetime.datetime.now()
-        logger.debug("Time to close pipe stdin: %s" % (t2-t1))
+        logger.debug("Time to close pipe stdin: %s" % (t2-t1).total_seconds())
         p.wait()
         t3 = datetime.datetime.now()
-        logger.debug("Time to p.wait(): %s" % (t3-t2))
+        logger.debug("Time to p.wait(): %s" % (t3-t2).total_seconds())
         local_video = LocalVideo(start_frame.id,
           start_frame.time,
           last_frame.time,
@@ -70,7 +70,7 @@ class FfmpegVideoWriter(VideoWriter):
             t4 = datetime.datetime.now()
             self.cloud_writer.write_video(local_video)
             t5 = datetime.datetime.now()
-            logger.debug("Time for cloud_write.write_video: %s" % (t5-t4))
+            logger.debug("Time for cloud_write.write_video: %s" % (t5-t4).total_seconds())
           except Exception as e:
             logger.error("Failed to write video to cloud_writer: %s" % e)
         return
@@ -80,7 +80,7 @@ class FfmpegVideoWriter(VideoWriter):
       t6 = datetime.datetime.now()
       p.stdin.write(buf.read())
       t7 = datetime.datetime.now()
-      logger.debug("Time write video frame to pipe: %s" % (t7-t6))
+      logger.debug("Time write video frame to pipe: %s" % (t7-t6).total_seconds())
 
     return writer, full_path
 
