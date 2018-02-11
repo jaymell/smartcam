@@ -31,6 +31,8 @@ RUN apt-get update && \
   libxvidcore-dev \
   libx264-dev \
   python3-dev \
+  libraspberrypi0 \
+  raspberrypi-bootloader \
   gfortran && \ 
   rm -rf /var/lib/apt/lists/*
 
