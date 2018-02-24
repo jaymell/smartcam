@@ -16,7 +16,22 @@ class APIManager:
     self.base_url = base_url
     self.auth_key = auth_key
 
+  def post_video_data(self, gen, url=None):
+    """ upload video binary in chunks using provided
+        generator function, return s3 location json """
+    if url is None:
+      url = self.base_url + 'videodata'
+    try:
+      r = requests.post(url, data=gen)
+      r.raise_for_status()
+      return r.json()
+    except requests.exceptions.ConnectionError as e:
+      raise APIConnectionError
+
   def post_video(self, video):
+    """ upload video metadata, including
+        location of previously-uploaded binary
+        data  """
     url = self.base_url + 'videos'
     try:
       a = video.serialize()

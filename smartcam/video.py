@@ -1,12 +1,6 @@
 import json
 import datetime
 
-#### TO DO
-
-# how does video get __full s3 url__?
-# make sure video gets written in proper reverse
-#  order key name to s3
-
 
 def convert_time(t):
   epoch = datetime.datetime.utcfromtimestamp(0)

@@ -1,99 +1,128 @@
-import cv2
 import logging
-import os
-import subprocess
-from PIL import Image
 import multiprocessing
+import os
 import queue
+import subprocess
+from threading import Thread, Lock
+import cv2
+from PIL import Image
 from smartcam.abstract import VideoWriter
-from smartcam.video import LocalVideo
+from smartcam.video import RemoteVideo
 
 logger = logging.getLogger(__name__)
 
 
-class FfmpegVideoWriter(VideoWriter):
-  """ opencv2 video writer """
+class FFMpegProcess:
 
-  def __init__(self, queue, fps, path=None, cloud_writer=None):
+  def __init__(self, fps, width, height, pipe, is_color=True):
+    """ pass first frame of video, return ffmpeg process """
+    logger.debug("instantiating FFMpegProcess")
+    self.pipe = open(pipe, 'wb')
+    self.p = subprocess.Popen([
+      'ffmpeg', '-y', '-f', 'image2pipe', '-r', str(fps),
+      '-s', '%sx%s' % (width, height), '-i', '-',
+      '-crf', "0", '-vcodec', 'libx264', '-f', 'matroska', "-" ],
+       stdin=subprocess.PIPE, stdout=self.pipe)
+
+  def write(self, frame):
+    """ write frame to ffmpeg """
+
+    logger.debug("writing frame")
+    last_frame = frame
+    buf = frame.encode()
+    buf.seek(0)
+    self.p.stdin.write(buf.read())
+
+  def close(self):
+    logger.debug("FFMpegProcess: closing")
+    try:
+      self.p.stdin.close()
+      self.p.wait()
+      self.pipe.close()
+    except Exception as e:
+      logger.error("Failed to close FFMpeg: %s" % e)
+
+  def __del__(self):
+    self.close()
+
+
+def chunk_generator(pipe):
+  """ return generator function """
+  CHUNK_SIZE = 1048576
+  while True:
+    data = pipe.read(CHUNK_SIZE)
+    if len(data) == 0:
+      logger.debug("chunk_generator no data read: returning")
+      return
+    logger.debug("chunk_generator read %s bytes" % len(data))
+    yield data
+
+
+class VideoManager:
+  ''' manage ffmpeg and remote api calls '''
+  def __init__(self, fps, api_manager, frame):
+    self.r, self.w = os.pipe()
+    self.first_frame = frame
+    self.current_frame = frame
+    self.ffmpeg = FFMpegProcess(fps, frame.width, frame.height, self.w)
+    self.api_manager = api_manager
+    self.lock = Lock()
+    self.readfh = open(self.r, 'rb')
+    Thread(target=self.post_video,
+      args=(chunk_generator(self.readfh),),
+      name='api_manager_video_post').start()
+
+  def post_video(self, generator):
+    """ post video binary then metadata, hold
+        lock to prevent pipe from being closed from
+        other thread """
+    try:
+      with self.lock:
+        resp = self.api_manager.post_video_data(generator)
+        self.api_manager.post_video(RemoteVideo(
+            self.first_frame.id,
+            self.first_frame.time,
+            self.current_frame.time,
+            self.first_frame.width,
+            self.first_frame.height,
+            resp['bucket'],
+            resp['key'],
+            resp['region']))
+    except Exception as e:
+      logger.error("ERROR: Failed to post video: %s" % e)
+
+  def on_next(self, frame):
+    self.current_frame = frame
+    self.ffmpeg.write(frame)
+
+  def on_completed(self):
+    """ this should block until post_video is done """
+    self.ffmpeg.close()
+    with self.lock:
+      self.ffmpeg = None
+      self.readfh.close()
+
+
+class VideoWriterImpl(VideoWriter):
+
+  def __init__(self, queue, fps, api_manager):
     multiprocessing.Process.__init__(self)
-    self.name =  FfmpegVideoWriter.__name__
+    self.name =  VideoWriterImpl.__name__
     self.queue = queue
     self.fps = fps
-    if path is not None:
-      self.path = path
-    else:
-      self.path = '/tmp'
-    # may still be None:
-    self.cloud_writer = cloud_writer
-
-  def get_writer(self, frame, ext='avi', is_color=True):
-    ''' pass first frame of video, return writer function
-        and name of file '''
-
-    logger.debug("called get_writer")
-    width = frame.width
-    height = frame.height
-    start_frame = frame
-    last_frame = None
-    file_prefix = frame.time.isoformat()
-    file_name = "%s.%s" % (file_prefix, ext)
-    full_path = os.path.join(self.path, file_name)
-
-    p = subprocess.Popen([
-      'ffmpeg', '-y', '-f', 'image2pipe', '-r', str(self.fps),
-      '-s', '%sx%s' % (width, height), '-i', '-',
-      '-crf', "0", '-vcodec', 'libx264', '-f', 'mp4', full_path ],
-       stdin=subprocess.PIPE)
-
-    def writer(frame):
-      ''' write frames to video, optionally write video to cloud '''
-      logger.debug("writing frame")
-      nonlocal last_frame
-      if frame is None:
-        logger.debug("received null frame")
-        p.stdin.close()
-        p.wait()
-        local_video = LocalVideo(start_frame.id,
-          start_frame.time,
-          last_frame.time,
-          width,
-          height,
-          full_path
-        )
-        if self.cloud_writer is not None:
-          self.cloud_writer.write_video(local_video)
-        return
-      last_frame = frame
-      buf = frame.encode()
-      buf.seek(0)
-      p.stdin.write(buf.read())
-
-    return writer, full_path
+    self.api_manager = api_manager
 
   def run(self):
-    writer = None
-    video_file = None
+    vid_man = None
     while True:
       try:
         frame = self.queue.get()
-      except queue.Empty:
-        continue
-      if frame is None:
-        if writer is not None:
-          writer(frame)
-          writer = None
-        if video_file is not None:
-          try:
-            os.remove(video_file)
-          except Exception as e:
-            logger.error("Failed to delete video")
-            raise e
-        continue
-      if writer is None:
-        logger.debug('instantiating writer')
-        writer, video_file = self.get_writer(frame, ext='mp4')
-      try:
-        writer(frame)
+        if vid_man is None:
+          vid_man = VideoManager(self.fps, self.api_manager, frame)
+        if frame is not None:
+          vid_man.on_next(frame)
+        else:
+          vid_man.on_completed()
+          vid_man = None
       except Exception as e:
-        logger.error("Failed to write frame to video ")
-        raise e
+        logger.error("ERROR: Failed to handle frame: %s" % e)

@@ -19,7 +19,7 @@ from smartcam.motion_detector import ( CV2MotionDetectorProcess,
                               CV2BackgroundSubtractorMOG,
                               CV2BackgroundSubtractorGMG )
 from smartcam.video_processor import CV2VideoProcessor
-from smartcam.video_writer import FfmpegVideoWriter
+from smartcam.video_writer import VideoWriterImpl
 from smartcam.frame_writer import FrameWriter
 from smartcam.api_manager import APIManager
 from smartcam.queue import Queue
@@ -218,9 +218,8 @@ def main(show_video=False):
     return 1
 
   try:
-    video_writer = FfmpegVideoWriter(motion_video_queue,
-      fps, path=None,
-      cloud_writer=cloud_video_writer)
+    video_writer = VideoWriterImpl(motion_video_queue,
+      fps, load_api_manager(config))
     video_writer.start()
   except Exception as e:
     logger.critical("Failed to load video_writer: %s" % e)
